@@ -84,13 +84,13 @@ else
     skip="y"
 fi
 
-# ask what modus to use
+# ask what mode to use
 echo "You can either save all variables to ONE *.vtk file"
 echo "or you can save each scalar to one file and all vector components to one file"
 echo -e ${Cyan} "Do you want to use the several vtk-files mode? ([y],n)" ${Color_Off}
-read modus
-if [ "${modus}" == "" ]; then
-    modus="y"
+read mode
+if [ "${mode}" == "" ]; then
+    mode="y"
 fi
 
 # ask what file ending to expect
@@ -125,10 +125,10 @@ echo -e "prefixes  : " ${Blue} ${items[@]} ${Color_Off}
 
 # Begin conversion
 
-if [ "${modus}" == "n" ]
+if [ "${mode}" == "n" ]
 then
     echo -e ${Cyan} "-----------------------" ${Color_Off}
-    echo -e ${Cyan} "ONE vtk file modus" ${Color_Off}
+    echo -e ${Cyan} "ONE vtk file mode"      ${Color_Off}
     echo -e ${Cyan} "-----------------------" ${Color_Off}
     lead_prefix=${items[0]}"_"
 
@@ -150,7 +150,7 @@ else
 
 
     echo -e ${Cyan} "-----------------------" ${Color_Off}
-    echo -e ${Cyan} "SEVERAL vtk files modus" ${Color_Off}
+    echo -e ${Cyan} "SEVERAL vtk files mode " ${Color_Off}
     echo -e ${Cyan} "-----------------------" ${Color_Off}
 
     # indentify vectors and scalars from the prefixes
