@@ -3,7 +3,7 @@
 # convert files from mpi format to a PARAVIEW readable format
 #-------------------------------------------------------------------------------
 
-# usage: 
+# usage:
 # mpiio2vtk.script <NX> <NY> <NZ>
 # where NX, NY, and NZ are the number of elements in each dimension
 
@@ -65,7 +65,7 @@ then
 	rm -r vtk
 	mkdir vtk
 	ask_to_skip="no"
-    fi  
+    fi
 else
     echo "creating subdirectory..."
     mkdir vtk
@@ -110,8 +110,8 @@ N=0
 lastp=""
 for F in `ls *.${ending}`
 do
-    # as is the file name with everything after 
-    p=$(echo ${F}  | sed 's/_[^_]*$//')_ 
+    # as is the file name with everything after
+    p=$(echo ${F}  | sed 's/_[^_]*$//')_
     p=${p%%_}
     if [ "$p" != "$lastp" ] ; then
 	lastp=$p
@@ -126,39 +126,33 @@ echo -e "prefixes  : " ${Blue} ${items[@]} ${Color_Off}
 # Begin conversion
 
 if [ "${modus}" == "n" ]
-then 
+then
     echo -e ${Cyan} "-----------------------" ${Color_Off}
     echo -e ${Cyan} "ONE vtk file modus" ${Color_Off}
     echo -e ${Cyan} "-----------------------" ${Color_Off}
     lead_prefix=${items[0]}"_"
-    
-    for file in ${lead_prefix}*.${ending} 
+
+    for file in ${lead_prefix}*.${ending}
 # note: I suppose that you saved the mask
     do
 	base=${file%%.${ending}}   # remove trailing .mpiio
 	base=${base##${lead_prefix}}    # remove leading ux_
 
     # note program also works if one or more files are not present
-	if [ ${skip}=="y" ]
-	then      
-	    if [ -f ./vtk/para_${base}.vtk ]
-	    then
-		echo "file ./vtk/para_"${base}".vtk exists. skipping..."
-	    else
- 		./convert_mpiio2vtk_ALL ./vtk/para_${base}.vtk ${NX} ${NY} ${NZ} "ux_"${base}"."${ending} "uy_"${base}"."${ending} "uz_"${base}"."${ending} "vorx_"${base}"."${ending} "vory_"${base}"."${ending} "vorz_"${base}"."${ending} "p_"${base}"."${ending} "mask_"${base}"."${ending} "usx_"${base}"."${ending} "usy_"${base}"."${ending} "usz_"${base}"."${ending}
-	    fi      
+	if [ ${skip}=="y" ] &&  [ -f ./vtk/para_${base}.vtk ] ; then
+	    echo "file ./vtk/para_"${base}".vtk exists. skipping..."
 	else
- 	    ./convert_mpiio2vtk_ALL ./vtk/para_${base}.vtk ${NX} ${NY} ${NZ} "ux_"${base}"."${ending} "uy_"${base}"."${ending} "uz_"${base}"."${ending} "vorx_"${base}"."${ending} "vory_"${base}"."${ending} "vorz_"${base}"."${ending} "p_"${base}"."${ending} "mask_"${base}"."${ending} "usx_"${base}"."${ending} "usy_"${base}"."${ending} "usz_"${base}"."${ending}
-	fi    
+ 	    convert_mpiio2vtk_ALL ./vtk/para_${base}.vtk ${NX} ${NY} ${NZ} "ux_"${base}"."${ending} "uy_"${base}"."${ending} "uz_"${base}"."${ending} "vorx_"${base}"."${ending} "vory_"${base}"."${ending} "vorz_"${base}"."${ending} "p_"${base}"."${ending} "mask_"${base}"."${ending} "usx_"${base}"."${ending} "usy_"${base}"."${ending} "usz_"${base}"."${ending}
+	fi
     done
 
-else 
+else
 
 
     echo -e ${Cyan} "-----------------------" ${Color_Off}
     echo -e ${Cyan} "SEVERAL vtk files modus" ${Color_Off}
     echo -e ${Cyan} "-----------------------" ${Color_Off}
-    
+
     # indentify vectors and scalars from the prefixes
 
     # look through all prefixed in array items[] if a prefix ends with
@@ -174,11 +168,11 @@ else
     do
       # the prefix
 	p=${items[i]}
-	if [ "${p:${#p}-1:${#p}}" == "x" ]; then 
+	if [ "${p:${#p}-1:${#p}}" == "x" ]; then
         # is the last char an "x"? yes -> delete following entries
-	    unset items[i+1] 
+	    unset items[i+1]
 # delete next two entrys (with y and z ending, hopefully)
-	    unset items[i+2]    
+	    unset items[i+2]
 	# the trailing "x" indicates a vector
 	    vectors[N2]=${p%%x} # collect entries for vector fields
 	    N2=$((N2+1))
@@ -190,13 +184,13 @@ else
 	    fi
 	fi
     done
-    
+
     # print summary
     echo -e "found scalars: " ${Cyan} ${scalars[@]} ${Color_Off}
     echo -e "found vectors: " ${Cyan} ${vectors[@]} ${Color_Off}
     echo -e $Cyan "any key to continue" $Color_Off
     read dummy
-    
+
     # --------------------------
     # SCALARS
     # --------------------------
@@ -225,13 +219,13 @@ else
 		fi
 	    else
 	    # file does not exist, go for it.
-		./convert_mpiio2vtk ${NX} ${NY} ${NZ} -scalar ${F}
+		convert_mpiio2vtk ${NX} ${NY} ${NZ} -scalar ${F}
 	    # currently, convert_mpiio2vtk creates the vtk file in the same directory. so move it.
-		mv ${vtk} vtk/  
+		mv ${vtk} vtk/
 	    fi
 	done
     done
-    
+
     # VECTORS
     for (( i=0; i<N2; i++ ))
     do
@@ -245,13 +239,13 @@ else
 	do
 	    vtk=${p}${F##${p}x}  # F=vorx_00010.mpiio vtk=vor_00010.mpiio
 	    vtk=${vtk%%${ending}}vtk # vtk=vor_00010.vtk
-	    
+
 	  # check if target file exists in vtk/
 	    if [ -f vtk/${vtk} ]; then
 	      # if you shouldn't skip it, overwrite it.
 		if [ "${skip}" != "y" ]; then
 		    echo -e $Green "file vtk/"${vtk} "exists, overwriting." $Color_Off
-		    ./convert_mpiio2vtk ${NX} ${NY} ${NZ} -vector ${F} ${p}y${F##${p}x} ${p}z${F##${p}x}
+		    convert_mpiio2vtk ${NX} ${NY} ${NZ} -vector ${F} ${p}y${F##${p}x} ${p}z${F##${p}x}
 		# currently, convert_mpiio2vtk creates the vtk file in the same directory. so move it.
 		    mv ${vtk} vtk/
 		else
@@ -260,13 +254,11 @@ else
 		fi
 	    else
 	    # file does not exist, go for it.
-		./convert_mpiio2vtk ${NX} ${NY} ${NZ} -vector ${F} ${p}y${F##${p}x} ${p}z${F##${p}x}
+		convert_mpiio2vtk ${NX} ${NY} ${NZ} -vector ${F} ${p}y${F##${p}x} ${p}z${F##${p}x}
 	    # currently, convert_mpiio2vtk creates the vtk file in the same directory. so move it.
 		mv ${vtk} vtk/
-	    fi	    
+	    fi
 	done
     done
-    
-    
-    
+
 fi

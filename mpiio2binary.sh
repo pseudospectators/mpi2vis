@@ -82,7 +82,7 @@ do
 	if [ "${skip}" == "s" ]; then
 	    echo -e $Green "File " ${file%%.mpiio}"binary already exists, skipping."
 	else
-	    ./convert_mpiio2binary ${file%%.mpiio} ${NX} ${NY} ${NZ} 0
+	    convert_mpiio2binary ${file%%.mpiio} ${NX} ${NY} ${NZ} 0
 	# check if binary file now exists
 	    if [ -f $target_file ]; then
 		if [ "${delete}" == "y" ]; then
@@ -96,7 +96,7 @@ do
 	fi 
     else
       # file does not exist
-	./convert_mpiio2binary ${file%%.mpiio} ${NX} ${NY} ${NZ} 0
+	convert_mpiio2binary ${file%%.mpiio} ${NX} ${NY} ${NZ} 0
       # check if binary file now exists
 	if [ -f $target_file ]; then
 	    if [ "${delete}" == "y" ]; then
