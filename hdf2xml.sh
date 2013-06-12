@@ -30,7 +30,7 @@ echo -e $Green "**************************************" $Color_Off
 #-----------------------
 # delete old files
 #-----------------------
-rm timesteps.in prefixes_vector.in prefixes_scalar.in
+rm -f timesteps.in prefixes_vector.in prefixes_scalar.in
 
 
 #-----------------------
@@ -73,6 +73,7 @@ N3=0
 for (( i=0; i<N; i++ ))
 do
   # the prefix
+  # echo "treating " ${items[i]}
     p=${items[i]}
     if [ "${p:${#p}-1:${#p}}" == "x" ]; then
         # is the last char an "x"? yes -> delete following entries
@@ -81,13 +82,15 @@ do
         unset items[i+2]
         # the trailing "x" indicates a vector
         vectors[N2]=${p%%x} # collect entries for vector fields        
-        echo ${vectors[n2]} >> prefixes_vector.in
+        echo ${vectors[N2]} >> ./prefixes_vector.in
+        #echo "echoing "  ${vectors[N2]}
         N2=$((N2+1))
     else
     # no? it's a scalar.
         if [ "$p" != "" ]; then  # note empty values are not scalars (they are uy, uz but unset because of ux)
             scalars[N3]=${p}
-            echo ${scalars[n2]} >> prefixes_scalar.in
+            echo ${scalars[N3]} >> ./prefixes_scalar.in
+            #echo "echoing "  ${scalars[N3]}
             N3=$((N3+1))           
         fi
     fi
@@ -97,7 +100,9 @@ done
 echo -e "found scalars : " ${Cyan} ${scalars[@]} ${Color_Off}
 echo -e "found vectors : " ${Cyan} ${vectors[@]} ${Color_Off}
 
-
+#-----------------------------------------------------------------------
+# look for time steps
+#-----------------------------------------------------------------------
 i=0
 for F in `ls ${scalars[0]}*.${ending}`
 do
@@ -108,7 +113,7 @@ do
     all_times[i]=${time}
     i=$((i+1))
     
-    echo $time >> timesteps.in
+    echo $time >> ./timesteps.in
 done
 
 echo -e "found times :   " ${Cyan} ${all_times[@]} ${Color_Off}
