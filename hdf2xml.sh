@@ -128,5 +128,5 @@ convert_hdf2xmf
 
 
 
-
-
+# don't leave traces :)
+rm -f timesteps.in prefixes_vector.in prefixes_scalar.in
