@@ -1,0 +1,26 @@
+-------------------------------------------------------------
+    HDF to PARAVIEW
+-------------------------------------------------------------
+
+new FLUSI code writes HDF5 files, according to the file naming convention
+
+  mask_00100.h5
+  ux_00001.h5
+
+this h5 file contains a single 3D field, described by the DATASET (see HDF5) "mask"
+it also holds 4 attributes: 
+
+  nxyz = integer(3) domain resolution
+  domain_size = double(3) domain size
+  time = double time of the snapshot
+  epsi = double the penalty parameter
+  
+the conversion to paraview works as follows:
+
+a) the script hdf2xmf.sh scans all files, and writes vectors ("mask"), scalars ("u") and basenames ("00010") in simple txt files
+
+b) the fortran XMF generator reads these to know what files to process
+
+c) the fortran XMF generator fetches the attributes directly from the *.h5 files. that is all we need to create the XML file.
+
+Note: this is the concept of light and heavy data (www.xdmf.org). The light XML file just tells PARAVIEW what to do with the heavy *.h5 files. YOU NEED BOTH!

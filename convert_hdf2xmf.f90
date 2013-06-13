@@ -4,9 +4,9 @@ program hdf2xml
   integer :: nx, ny, nz, nscal,nvec,ivec,ndt,idt, io_error=0,iscal
   real (kind=pr) :: time, xl, yl, zl
   character (len=5) :: basefilename
-  character prefixes_scalar(20)*10 ! maximal 20 prefixes à 10 chars length
-  character prefixes_vector(20)*10 ! maximal 20 prefixes à 10 chars length
-  character timesteps(1000)*10 ! maximal 1000 time steps à 10 chars length
+  character prefixes_scalar(100)*10 ! maximal 100 prefixes à 10 chars length
+  character prefixes_vector(100)*10 ! maximal 100 prefixes à 10 chars length
+  character timesteps(10000)*10 ! maximal 10000 time steps à 10 chars length
 
   write (*,*) "-------------------------"
   write (*,*) " fortran XMF generator"
