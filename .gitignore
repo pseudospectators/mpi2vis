@@ -1,0 +1,7 @@
+*.o
+*.mod
+main
+convert_hdf2xmf
+convert_mpiio2vtk
+convert_mpiio2binary
+convert_mpiio2vtk_ALL
