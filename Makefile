@@ -16,6 +16,7 @@ HDF_INC = $(HDF_ROOT)/include
 LDFLAGS = $(HDF5_FLAGS)
 LDFLAGS += -L$(HDF_LIB) -lhdf5_fortran -lhdf5 -lz
 
+FFLAGS += -I$(HDF_INC) 
 
 
 PROGRAMS = convert_mpiio2vtk convert_mpiio2vtk_ALL convert_mpiio2binary convert_hdf2xmf
