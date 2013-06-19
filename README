@@ -34,3 +34,11 @@ a *.vtk file can then be read into paraview directly.
 
 if the *.binary contains a scalar, such as mask_00010.binary, a file mask_00010.vtk will be generated.
 if the *.binary file is part of a vector, which is the case for ux_00010.binary, the script looks for the other two components uy_00010.binary and uz_00010.binary and converts all three to the file u_00010.vtk
+
+
+------------------------------------------------------------
+	MPIIO to BINARY
+------------------------------------------------------------
+these scripts are deprecated with newer versions of FLUSI/PENGHOST
+they convert the *.mpiio files, which the codes write directly, into a standard fortran-readable *.binary file
+these *.binary files can then be processed with binary2vapor.sh to load them into VAPOR
