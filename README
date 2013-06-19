@@ -1,5 +1,5 @@
 -------------------------------------------------------------
-    HDF to PARAVIEW
+    HDF to PARAVIEW (hdf2xmf.sh)
 -------------------------------------------------------------
 
 new FLUSI code writes HDF5 files, according to the file naming convention
@@ -27,9 +27,9 @@ Note: this is the concept of light and heavy data (www.xdmf.org). The light XML 
 
 
 ------------------------------------------------------------
-	BINARY to PARAVIEW
+	MPIIO/BINARY to PARAVIEW (mpiio2vtk.sh)
 ------------------------------------------------------------
-this script and converter is designed to convert *.binary files to *.vtk files.
+this script and converter is designed to convert *.binary or *.mpiio files to *.vtk files.
 a *.vtk file can then be read into paraview directly.
 
 if the *.binary contains a scalar, such as mask_00010.binary, a file mask_00010.vtk will be generated.
