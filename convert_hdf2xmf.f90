@@ -148,7 +148,8 @@ subroutine BeginFile ( nx, ny, nz )
   integer, intent (in) :: nx, ny, nz
   character (len=128) :: nxyz_str 
   
-  write (nxyz_str,'(3(i4.4,1x))') nx, ny, nz
+  ! note odd indices. paraview requirement
+  write (nxyz_str,'(3(i4.4,1x))') nz, ny, nx 
   write (*,'("Resolution: ",3(i4,1x) )') nx, ny, nz
   
   write (14,'(A)') '<?xml version="1.0" ?>'
