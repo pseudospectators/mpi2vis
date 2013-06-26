@@ -2,46 +2,55 @@
     HDF to PARAVIEW (hdf2xmf.sh)
 -------------------------------------------------------------
 
-new FLUSI code writes HDF5 files, according to the file naming convention
+The new fsi/mhd code writes HDF5 files, according to the file naming
+convention:
 
   mask_00100.h5
   ux_00001.h5
 
-this h5 file contains a single 3D field, described by the DATASET (see HDF5) "mask"
-it also holds 4 attributes: 
+The h5 file contains a single 3D field, described by the DATASET (see
+HDF5) "mask" it also holds 4 attributes:
 
   nxyz = integer(3) domain resolution
   domain_size = double(3) domain size
   time = double time of the snapshot
   epsi = double the penalty parameter
   
-the conversion to paraview works as follows:
+The conversion to paraview works as follows:
 
-a) the script hdf2xmf.sh scans all files, and writes vectors ("mask"), scalars ("u") and basenames ("00010") in simple txt files
+a) hdf2xmf.sh scans all files, and writes scalars ("mask"), vectors
+("u") and basenames ("00010") in simple text files.
 
-b) the fortran XMF generator reads these to know what files to process
+b) The fortran XMF generator reads these to know what files to process.
 
-c) the fortran XMF generator fetches the attributes directly from the *.h5 files. that is all we need to create the XML file.
+c) The fortran XMF generator fetches the attributes directly from the
+*.h5 files. that is all we need to create the XML file.
 
-Note: this is the concept of light and heavy data (www.xdmf.org). The light XML file just tells PARAVIEW what to do with the heavy *.h5 files. YOU NEED BOTH!
+Note: this is the concept of light and heavy data (www.xdmf.org). The
+light XML file just tells PARAVIEW what to do with the heavy *.h5
+files; both are needed.
 
 
 ------------------------------------------------------------
 	MPIIO/BINARY to PARAVIEW (mpiio2vtk.sh)
 ------------------------------------------------------------
-this script and converter is designed to convert *.binary or *.mpiio files to *.vtk files.
-a *.vtk file can then be read into paraview directly.
 
-if the *.binary contains a scalar, such as mask_00010.binary, a file mask_00010.vtk will be generated.
-if the *.binary file is part of a vector, which is the case for ux_00010.binary, the script looks for the other two components uy_00010.binary and uz_00010.binary and converts all three to the file u_00010.vtk
+This script and converter is designed to convert *.binary or *.mpiio
+files to *.vtk files.  A *.vtk file can then be read into paraview
+directly.
+
+If the *.binary contains a scalar, such as mask_00010.binary, a file
+mask_00010.vtk will be generated.  if the *.binary file is part of a
+vector, which is the case for ux_00010.binary, the script looks for
+the other two components uy_00010.binary and uz_00010.binary and
+converts all three to the file u_00010.vtk
 
 
 ------------------------------------------------------------
 	MPIIO to BINARY
 ------------------------------------------------------------
-these scripts are deprecated with newer versions of FLUSI/PENGHOST
-they convert the *.mpiio files, which the codes write directly, into a standard fortran-readable *.binary file
-these *.binary files can then be processed with binary2vapor.sh to load them into VAPOR
 
-
-------------HelloDmitry
+These scripts are deprecated with newer versions of the fsi/mhd code.
+They convert the *.mpiio files, which the codes write directly, into a
+standard fortran-readable *.binary file these *.binary files can then
+be processed with binary2vapor.sh to load them into VAPOR

@@ -1,14 +1,19 @@
 #!/bin/bash
-#-------------------------------------------------------------------------------
-# this is the main script to convert all *.h5 files in this directory to one *.xmf metafile
-# note:
-# * this is not a "true" conversion in the sense that the *.xmf only tells paraview what
-#   to do with the *.h5 files. you'll need both!
-# * yes, its true! this script is completely automatical and doesn't need arguments
-# * note the *.h5 files must contain the attributes "nxyz", "time", "domain_size". also, they must
-#   follow the file naming convention: mask_00010.h5 is a valid name. the dataset in the file MUST
-#   have the SAME name as the prefix of the file.
-#-------------------------------------------------------------------------------
+
+# this is the main script to convert all *.h5 files in this directory
+# to one *.xmf metafile
+
+# note: # * this is not a "true" conversion in the sense that the
+# *.xmf only tells paraview what to do with the *.h5 files. you'll
+# need both!
+
+# yes, its true! this script is completely automatical and doesn't
+# need arguments
+
+# note the *.h5 files must contain the attributes "nxyz", "time",
+# "domain_size". also, they must follow the file naming convention:
+# mask_00010.h5 is a valid name. the dataset in the file MUST have the
+# SAME name as the prefix of the file.
 
 
 # Reset
@@ -22,23 +27,17 @@ Cyan='\e[0;36m'         # Cyan
 echo -e $Green "**************************************" $Color_Off
 echo -e $Green "**      HDF2XMF                     **" $Color_Off
 echo -e $Green "**************************************" $Color_Off
-echo -e $Green "**      T. Engels                   **" $Color_Off
-echo -e $Green "**      Aix-Marseille-Université    **" $Color_Off
-echo -e $Green "**************************************" $Color_Off
-
-
 #-----------------------
-# delete old files
+# Delete old files
 #-----------------------
 rm -f timesteps.in prefixes_vector.in prefixes_scalar.in
 
-
 #-----------------------
-# find prefixes
+# Find prefixes
 #-----------------------
-# look through all the files whose names end with *.h5 and put
-# them in the items array, as well as in the list, where file names
-# are separated with colons. N is the number of items in the list.
+# Look through all the files whose names end with *.h5 and put them in
+# the items array, as well as in the list, where file names are
+# separated with colons. N is the number of items in the list.
 N=0
 lastp=""
 ending="h5"
@@ -56,12 +55,10 @@ done
 
 echo -e "found prefixes: " ${Blue} ${items[@]} ${Color_Off}
 
-
-
 #-----------------------
-# indentify vectors and scalars from the prefixes
+# Indentify vectors and scalars from the prefixes
 #-----------------------
-# look through all prefixed in array items[] if a prefix ends with
+# Look through all prefixed in array items[] if a prefix ends with
 # "x", it's assumed to be the x-component of a vector.  the next 2
 # indices then will contain "y" and "z" component. we remove them
 # from the list items[] the prefix ending with "x" is then
@@ -96,37 +93,56 @@ do
     fi
 done
 
-# print summary
+if [ $N2 == 0 ]; then
+    if [ $N3 == 0 ]; then
+	echo "Error: no input data found. Exiting."
+	exit
+    fi
+fi
+
+# Print summary
+echo "Number of vectors: "$N2
+echo "Number of scalars: "$N3
 echo -e "found scalars : " ${Cyan} ${scalars[@]} ${Color_Off}
 echo -e "found vectors : " ${Cyan} ${vectors[@]} ${Color_Off}
 
-#-----------------------------------------------------------------------
-# look for time steps
-#-----------------------------------------------------------------------
-i=0
-for F in `ls ${scalars[0]}*.${ending}`
-do
-    time=${F%%.${ending}}
-    time=${time##${scalars[0]}}
-    time=${time##_}
-    
-    all_times[i]=${time}
-    i=$((i+1))
-    
-    echo $time >> ./timesteps.in
-done
+# Look for time steps
+if [ $N3 != 0 ]; then
+    # echo "Look for time with scalars."
+    i=0
+    for F in `ls ${scalars[0]}*.${ending}`
+    do
+	time=${F%%.${ending}}
+	time=${time##${scalars[0]}}
+	time=${time##_}
+	
+	all_times[i]=${time}
+	i=$((i+1))
+	
+	echo $time >> ./timesteps.in
+    done
+else 
+    if [ $N2 != 0 ]; then
+	# echo "Look for time with vectors."
+	i=0
+	for F in `ls ${vectors[0]}x*.${ending}`
+	do
+	    time=${F%%.${ending}}
+	    time=${time##${vectors[0]}}
+	    time=${time##x_}
+	    
+	    all_times[i]=${time}
+	    i=$((i+1))
+	    
+	    echo $time >> ./timesteps.in
+    done
+    fi
+fi
 
 echo -e "found times :   " ${Cyan} ${all_times[@]} ${Color_Off}
 
-echo -e ${Purple} "any key to continue" ${Color_Off}
-read dummy
-
-
-
-
+# Create All.xmf using the FORTRAN converter
 convert_hdf2xmf
 
-
-
-# don't leave traces :)
+# Remove temporary files.
 rm -f timesteps.in prefixes_vector.in prefixes_scalar.in

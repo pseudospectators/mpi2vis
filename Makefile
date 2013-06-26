@@ -18,8 +18,12 @@ LDFLAGS += -L$(HDF_LIB) -lhdf5_fortran -lhdf5 -lz
 
 FFLAGS += -I$(HDF_INC) 
 
+# Debug options:
+# FFLAGS += -Wuninitialized -O -fimplicit-none -fbounds-check -g -ggdb
 
-PROGRAMS = convert_mpiio2vtk convert_mpiio2vtk_ALL convert_mpiio2binary convert_hdf2xmf
+
+PROGRAMS = convert_mpiio2vtk convert_mpiio2vtk_ALL convert_mpiio2binary \
+	convert_hdf2xmf
 
 all: $(PROGRAMS)
 
