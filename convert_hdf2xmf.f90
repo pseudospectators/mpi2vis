@@ -127,7 +127,6 @@ program hdf2xml
      endif
 
      if(vectors_exist) then
-        ! FIXME: this is probably wrong
         call Fetch_attributes (trim(adjustl(prefixes_vector(1)))//"x_"//trim(adjustl(timesteps(idt)))//".h5",&
              trim(adjustl(prefixes_vector(1)))//"x", nx,ny,nz,xl,yl,zl,time)  
      endif
