@@ -210,7 +210,7 @@ subroutine BeginTimeStep ( nx, ny, nz, xl, yl ,zl, time )
   write (14,'(A)') '    0 0 0'
   write (14,'(A)') '    </DataItem>'
   write (14,'(A)') '    <DataItem Dimensions="3" NumberType="Float" Format="XML">'
-  write (14,'(4x,3(es15.8,1x))') xl / dble (nx), yl/dble(ny), zl/dble(nz)
+  write (14,'(4x,3(es15.8,1x))') zl/dble(nz), yl/dble(ny), xl/dble(nx)
   write (14,'(A)') '    </DataItem>'
   write (14,'(A)') '    </Geometry>'  
 end subroutine BeginTimeStep
