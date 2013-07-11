@@ -169,7 +169,7 @@ subroutine BeginFile(nx,ny,nz)
   integer, intent (in) :: nx, ny, nz
   character (len=128) :: nxyz_str 
 
-  ! note odd indices. paraview requirement
+  ! NB: indices output in z,y,x order. (C vs Fortran ordering?)
   write (nxyz_str,'(3(i4.4,1x))') nz, ny, nx 
   write (*,'("Resolution: ",3(i4,1x) )') nx, ny, nz
 
@@ -191,7 +191,7 @@ subroutine EndFile()
 end subroutine EndFile
 
 
-subroutine BeginTimeStep ( nx, ny, nz, xl, yl ,zl, time )
+subroutine BeginTimeStep( nx, ny, nz, xl, yl ,zl, time )
   implicit none
   integer, parameter :: pr = 8
   integer, intent (in) :: nx, ny, nz
@@ -210,6 +210,7 @@ subroutine BeginTimeStep ( nx, ny, nz, xl, yl ,zl, time )
   write (14,'(A)') '    0 0 0'
   write (14,'(A)') '    </DataItem>'
   write (14,'(A)') '    <DataItem Dimensions="3" NumberType="Float" Format="XML">'
+  ! NB: indices output in z,y,x order. (C vs Fortran ordering?)
   write (14,'(4x,3(es15.8,1x))') zl/dble(nz), yl/dble(ny), xl/dble(nx)
   write (14,'(A)') '    </DataItem>'
   write (14,'(A)') '    </Geometry>'  
@@ -222,7 +223,7 @@ subroutine EndTimeStep ( )
 end subroutine EndTimeStep
 
 
-subroutine WriteVector ( basefilename, prefix, nx, ny, nz, xl, yl ,zl, time )
+subroutine WriteVector( basefilename, prefix, nx, ny, nz, xl, yl ,zl, time )
   implicit none
   integer, parameter :: pr = 8
   integer, intent (in) :: nx, ny, nz
@@ -252,6 +253,7 @@ end subroutine WriteVector
 
 subroutine WriteScalar ( basefilename, prefix, nx, ny, nz, xl, yl ,zl, time )
   implicit none
+
   integer, parameter :: pr = 8
   integer, intent (in) :: nx, ny, nz
   real (kind=pr), intent(in) :: xl,yl,zl, time
@@ -268,19 +270,21 @@ subroutine WriteScalar ( basefilename, prefix, nx, ny, nz, xl, yl ,zl, time )
 end subroutine WriteScalar
 
 
+!----------------------------------------------------
+! This routine fetches the resolution, the domain size and the time
+! form a *.h5 file
+!----------------------------------------------------
+! filename: a *.h5 file to read from.
+! dsetname: a dataset inside the file. in our system, we only have one per file
+!           and this matches the prefix: mask_00010.h5  --> dsetname = "mask"
+! note:
+!           the file must contain the dataset
+!           but especially the attributes "nxyz", "time", "domain_size"
+!----------------------------------------------------
 subroutine Fetch_attributes( filename, dsetname,  nx, ny, nz, xl, yl ,zl, time )
-  !----------------------------------------------------
-  ! this routine fetches the resolution, the domain size and the time form a *.h5 file
-  !----------------------------------------------------
-  ! filename: a *.h5 file to read from.
-  ! dsetname: a dataset inside the file. in our system, we only have one per file
-  !           and this matches the prefix: mask_00010.h5  --> dsetname = "mask"
-  ! note:
-  !           the file must contain the dataset
-  !           but especially the attributes "nxyz", "time", "domain_size"
-  !----------------------------------------------------
   use hdf5
   implicit none
+
   integer, parameter :: pr = 8
   integer, intent (out) :: nx, ny, nz
   real (kind=pr), intent(out) :: xl,yl,zl, time
