@@ -38,13 +38,17 @@ rm -f timesteps.in prefixes_vector.in prefixes_scalar.in
 # Look through all the files whose names end with *.h5 and put them in
 # the items array, as well as in the list, where file names are
 # separated with colons. N is the number of items in the list.
+# Exclude files containing the string "backup", which are not used
+# in output files.
 N=0
 lastp=""
 ending="h5"
-for F in `ls *.${ending}`
+for F in `find . -not -name "*backup*" -name "*.${ending}" | sort`
 do
     # as is the file name with everything after
-    p=$(echo ${F}  | sed 's/_[^_]*$//')_
+    # also remove the preceding ./ which shows up when one uses the
+    # find command.
+    p=$(echo ${F}  | sed 's/_[^_]*$//' | sed 's/\.\///')_
     p=${p%%_}
     if [ "$p" != "$lastp" ] ; then
 	lastp=$p
@@ -53,7 +57,7 @@ do
     fi
 done
 
-echo -e "found prefixes: " ${Blue} ${items[@]} ${Color_Off}
+echo -e "found prefixes: " ${items[@]} 
 
 #-----------------------
 # Indentify vectors and scalars from the prefixes
