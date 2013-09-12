@@ -43,7 +43,7 @@ rm -f timesteps.in prefixes_vector.in prefixes_scalar.in
 N=0
 lastp=""
 ending="h5"
-for F in `find . -not -name "*backup*" -name "*.${ending}" | sort`
+for F in `find . -maxdepth 1 -not -name "*backup*" -name "*.${ending}" | sort`
 do
     # as is the file name with everything after
     # also remove the preceding ./ which shows up when one uses the
@@ -109,6 +109,7 @@ echo "Number of vectors: "$N2
 echo "Number of scalars: "$N3
 echo -e "found scalars : " ${Cyan} ${scalars[@]} ${Color_Off}
 echo -e "found vectors : " ${Cyan} ${vectors[@]} ${Color_Off}
+
 
 # Look for time steps
 if [ $N3 != 0 ]; then
