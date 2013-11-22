@@ -1,0 +1,28 @@
+#!/bin/bash
+
+# Script that calls h5dump and, assuming some file and data name
+# conventions, dumps to a binary file which can be read by, for
+# example, asymptote.
+
+if [ "$1" == "" ] ; then
+    echo "Please specify an input file."
+    echo "Usage example: hdf2binary ux_0000.h5"
+    exit
+fi
+
+if [ -f $1 ];
+then
+    echo "Input file "$1" does not exist."
+    exit
+fi
+
+# the output file is the filename without the .h5 suffix.
+out=$(echo $1 | sed 's/.h5//')
+
+# we assume that the data field (available via h5ls) is the first part
+# of the filename before the underscore.
+field=$(echo $1 | sed 's/_.*//')
+
+echo h5dump -b LE -o $out -d /$field $1
+h5dump -b LE -o $out -d /$field $1
+
