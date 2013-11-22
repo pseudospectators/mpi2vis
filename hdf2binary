@@ -10,7 +10,7 @@ if [ "$1" == "" ] ; then
     exit
 fi
 
-if [ -f $1 ];
+if [ f $1 ];
 then
     echo "Input file "$1" does not exist."
     exit
