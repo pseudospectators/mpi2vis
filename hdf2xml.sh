@@ -10,6 +10,19 @@
 # yes, its true! this script is completely automatical and doesn't
 # need arguments
 
+# Actually, it now takes arguments, allowing for the processing of a
+# specific field.  By default, all fields are processed.  By using the
+# command
+#   hdf2xml.sh u
+# only the velocity field (all thre components) is processed.  By
+# using the command
+#   hdf2xml.sh uz
+# only the z-component of the velocity fields is processed.  More
+# fields can be added via regexps, eg
+#   hdf2xml.sh [uz,mask]
+# to process only uz and the mask.  This can be extended to include
+# more than two fields in the expected fashion.
+
 # note the *.h5 files must contain the attributes "nxyz", "time",
 # "domain_size". also, they must follow the file naming convention:
 # mask_00010.h5 is a valid name. the dataset in the file MUST have the
@@ -43,7 +56,13 @@ rm -f timesteps.in prefixes_vector.in prefixes_scalar.in
 N=0
 lastp=""
 ending="h5"
-for F in `find . -maxdepth 1 -not -name "*backup*" -name "*.${ending}" | sort`
+if [ "$1" == "" ] ; then
+    name=\*.${ending}
+else
+    name=${1}\*.${ending}
+fi
+
+for F in `find . -maxdepth 1 -not -name "*backup*" -name "${name}" | sort`
 do
     # as is the file name with everything after
     # also remove the preceding ./ which shows up when one uses the
