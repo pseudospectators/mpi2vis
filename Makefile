@@ -14,7 +14,7 @@ HDF_LIB = $(HDF_ROOT)/lib
 HDF_INC = $(HDF_ROOT)/include
 
 LDFLAGS = $(HDF5_FLAGS)
-LDFLAGS += -L$(HDF_LIB) -lhdf5_fortran -lhdf5 -lz
+LDFLAGS += -L$(HDF_LIB) -lhdf5_fortran -lhdf5 -lz -ldl
 
 FFLAGS += -I$(HDF_INC) 
 
