@@ -77,7 +77,7 @@ do
 done
 
 echo -e "found prefixes: " ${items[@]} 
-
+all_prefixes=${items[@]}
 #-----------------------
 # Indentify vectors and scalars from the prefixes
 #-----------------------
@@ -164,6 +164,17 @@ else
 fi
 
 echo -e "found times :   " ${Cyan} ${all_times[@]} ${Color_Off}
+
+# check if some files do not exist and if so, yell at user.
+for prefix in $all_prefixes
+do
+  for tt in ${all_times[@]}
+  do
+    if [ ! -f ${prefix}"_"${tt}".h5" ]; then
+      echo -e ${Cyan} file not found: ${prefix}"_"${tt}".h5"  ${Color_Off}
+    fi
+  done
+done
 
 # Create All.xmf using the FORTRAN converter
 convert_hdf2xmf
