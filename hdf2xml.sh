@@ -165,6 +165,7 @@ fi
 
 echo -e "found times :   " ${Cyan} ${all_times[@]} ${Color_Off}
 
+
 # check if some files do not exist and if so, yell at user.
 for prefix in $all_prefixes
 do
@@ -176,8 +177,27 @@ do
   done
 done
 
-# Create All.xmf using the FORTRAN converter
-convert_hdf2xmf
+
+
+echo "Do you want to create one ALL.xmf file with all time steps or one xmf-file for each time step?"
+echo "[return] for ALL.xmf, (i) for individual files"
+read all
+
+
+if [ $all == "i" ]; then
+   # by choice, we create one XMF file PER time step. This is handy for very large data sets.
+   for time in ${all_times[@]}
+   do
+       rm -f timesteps.in
+       echo $time >> ./timesteps.in
+       # Create All.xmf using the FORTRAN converter
+       convert_hdf2xmf
+       mv ALL.xmf $time.xmf
+   done
+else 
+   # Create All.xmf using the FORTRAN converter
+   convert_hdf2xmf
+fi
 
 # Remove temporary files.
 rm -f timesteps.in prefixes_vector.in prefixes_scalar.in
