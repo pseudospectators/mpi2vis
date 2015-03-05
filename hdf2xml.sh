@@ -10,21 +10,32 @@
 # yes, its true! this script is completely automatical and doesn't
 # need arguments
 
-# Actually, it now takes arguments, allowing for the processing of a
-# specific field.  By default, all fields are processed.  By using the
-# command
-#   hdf2xml.sh -i u
+# The script hdf2xml.sh can be run without arguments as usual.
+# By default, all fields are processed.  By using the command
+#
+# hdf2xml.sh -i u
+#
 # only the velocity field (all three components) is processed.  By
 # using the command
-#   hdf2xml.sh -i uz
+#
+# hdf2xml.sh -i uz
+#
 # only the z-component of the velocity fields is processed.
 # using the command
-#   hdf2xml.sh -i uz -e mask
+#
+# hdf2xml.sh -i uz -e mask
+#
 # only the z-component of the velocity fields is processed, but the mask
 # isn't
-#   hdf2xml.sh -i uz -e mask -s
-# only the z-component of the velocity fields is processed, but the mask
-# isn't. Also, load only every 2nd grid point ("-s")
+#
+# hdf2xml.sh -e mask -s
+#
+# all fields are processed, except the mask.
+# Also, load only every 2nd grid point ("-s").
+#
+# ./hdf2xml.sh -i [u,mask] -e us
+#
+# processes u, full vector, but not us, also mask.
 
 
 # note the *.h5 files must contain the attributes "nxyz", "time",
