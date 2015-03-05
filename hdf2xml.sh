@@ -13,15 +13,19 @@
 # Actually, it now takes arguments, allowing for the processing of a
 # specific field.  By default, all fields are processed.  By using the
 # command
-#   hdf2xml.sh u
-# only the velocity field (all thre components) is processed.  By
+#   hdf2xml.sh -i u
+# only the velocity field (all three components) is processed.  By
 # using the command
-#   hdf2xml.sh uz
-# only the z-component of the velocity fields is processed.  More
-# fields can be added via regexps, eg
-#   hdf2xml.sh [uz,mask]
-# to process only uz and the mask.  This can be extended to include
-# more than two fields in the expected fashion.
+#   hdf2xml.sh -i uz
+# only the z-component of the velocity fields is processed.
+# using the command
+#   hdf2xml.sh -i uz -e mask
+# only the z-component of the velocity fields is processed, but the mask
+# isn't
+#   hdf2xml.sh -i uz -e mask -s
+# only the z-component of the velocity fields is processed, but the mask
+# isn't. Also, load only every 2nd grid point ("-s")
+
 
 # note the *.h5 files must contain the attributes "nxyz", "time",
 # "domain_size". also, they must follow the file naming convention:
@@ -37,13 +41,34 @@ Blue='\e[0;34m'         # Blue
 Purple='\e[0;35m'       # Purple
 Cyan='\e[0;36m'         # Cyan
 
-echo -e $Green "**************************************" $Color_Off
-echo -e $Green "**      HDF2XMF                     **" $Color_Off
-echo -e $Green "**************************************" $Color_Off
+echo -e $Green "*************************************************" $Color_Off
+echo -e $Green "**      HDF2XMF                                **" $Color_Off
+echo -e $Green "** ./hdf2xml.sh -i [INCLUDE] -e [EXCLUDE] -s   **" $Color_Off
+echo -e $Green "**  -s Striding. Use only every 2nd grid point **" $Color_Off
+echo -e $Green "**  -i prefixes to include                     **" $Color_Off
+echo -e $Green "**  -e prefixes to exclude                     **" $Color_Off
+echo -e $Green "*************************************************" $Color_Off
+echo -e $Green "** Read full files u, but not mask:            **" $Color_Off
+echo -e $Green "** ./hdf2xml.sh -i u -e mask                   **" $Color_Off
+echo -e $Green "*************************************************" $Color_Off
+echo -e $Green "** Read full files u,mask, but not us:         **" $Color_Off
+echo -e $Green "** ./hdf2xml.sh -i [u,mask] -e us              **" $Color_Off
+echo -e $Green "*************************************************" $Color_Off
+
+# parse options
+while getopts ':se:i:' OPTION ; do
+  case "$OPTION" in
+    s)   echo -e ${Purple} "Use striding!" ${Color_Off} ; stride="y";;
+    i)   echo -e "Include the following files" ${Purple} ${OPTARG} ${Color_Off} ; include=${OPTARG};;
+    e)   echo -e "Exclude the following files" ${Purple} ${OPTARG} ${Color_Off} ; exclude=${OPTARG};;
+    *)   echo "Unknown parameter" ; exit 1 ;;
+  esac
+done
+
 #-----------------------
 # Delete old files
 #-----------------------
-rm -f timesteps.in prefixes_vector.in prefixes_scalar.in
+rm -f timesteps.in prefixes_vector.in prefixes_scalar.in STRIDE.in
 
 #-----------------------
 # Find prefixes
@@ -56,27 +81,44 @@ rm -f timesteps.in prefixes_vector.in prefixes_scalar.in
 N=0
 lastp=""
 ending="h5"
-if [ "$1" == "" ] ; then
-    name=\*.${ending}
-else
-    name=${1}\*.${ending}
+
+if [ "$stride" == "y" ] ; then
+  # the fortran program will check if the file STRIDE.in
+  # exists and if it does, then we use striding
+  echo "STRIDE ON"
+  touch STRIDE.in
 fi
 
-for F in `find . -maxdepth 1 -not -name "*backup*" -name "${name}" | sort`
+# explicitly include these files
+if [ "$include" == "" ] ; then
+  names_include=\*.${ending}
+else
+  names_include=$include\*.${ending}
+fi
+
+# explicitly EXCLUDE these files:
+if [ "$exclude" == "" ] ; then
+  names_exclude=""
+else
+  names_exclude=$exclude\*.${ending}
+fi
+
+
+for F in `find . -maxdepth 1 -not -name "*backup*" -name "${names_include}" -not -name "${names_exclude}" | sort`
 do
-    # as is the file name with everything after
-    # also remove the preceding ./ which shows up when one uses the
-    # find command.
-    p=$(echo ${F}  | sed 's/_[^_]*$//' | sed 's/\.\///')_
-    p=${p%%_}
-    if [ "$p" != "$lastp" ] ; then
-	lastp=$p
-	items[$N]=$p
-	N=$((N+1))
-    fi
+  # as is the file name with everything after
+  # also remove the preceding ./ which shows up when one uses the
+  # find command.
+  p=$(echo ${F}  | sed 's/_[^_]*$//' | sed 's/\.\///')_
+  p=${p%%_}
+  if [ "$p" != "$lastp" ] ; then
+    lastp=$p
+    items[$N]=$p
+    N=$((N+1))
+  fi
 done
 
-echo -e "found prefixes: " ${items[@]} 
+echo -e "found prefixes: " ${Cyan} ${items[@]} ${Color_Off}
 all_prefixes=${items[@]}
 #-----------------------
 # Indentify vectors and scalars from the prefixes
@@ -94,73 +136,73 @@ for (( i=0; i<N; i++ ))
 do
   # the prefix
   # echo "treating " ${items[i]}
-    p=${items[i]}
-    if [ "${p:${#p}-1:${#p}}" == "x" ]; then
-        # is the last char an "x"? yes -> delete following entries
-        unset items[i+1]
-        # delete next two entrys (with y and z ending, hopefully)
-        unset items[i+2]
-        # the trailing "x" indicates a vector
-        vectors[N2]=${p%%x} # collect entries for vector fields        
-        echo ${vectors[N2]} >> ./prefixes_vector.in
-        #echo "echoing "  ${vectors[N2]}
-        N2=$((N2+1))
-    else
+  p=${items[i]}
+  if [ "${p:${#p}-1:${#p}}" == "x" ]; then
+    # is the last char an "x"? yes -> delete following entries
+    unset items[i+1]
+    # delete next two entrys (with y and z ending, hopefully)
+    unset items[i+2]
+    # the trailing "x" indicates a vector
+    vectors[N2]=${p%%x} # collect entries for vector fields
+    echo ${vectors[N2]} >> ./prefixes_vector.in
+    #echo "echoing "  ${vectors[N2]}
+    N2=$((N2+1))
+  else
     # no? it's a scalar.
-        if [ "$p" != "" ]; then  # note empty values are not scalars (they are uy, uz but unset because of ux)
-            scalars[N3]=${p}
-            echo ${scalars[N3]} >> ./prefixes_scalar.in
-            #echo "echoing "  ${scalars[N3]}
-            N3=$((N3+1))           
-        fi
+    if [ "$p" != "" ]; then  # note empty values are not scalars (they are uy, uz but unset because of ux)
+      scalars[N3]=${p}
+      echo ${scalars[N3]} >> ./prefixes_scalar.in
+      #echo "echoing "  ${scalars[N3]}
+      N3=$((N3+1))
     fi
+  fi
 done
 
 if [ $N2 == 0 ]; then
-    if [ $N3 == 0 ]; then
-	echo "Error: no input data found. Exiting."
-	exit
-    fi
+  if [ $N3 == 0 ]; then
+    echo "Error: no input data found. Exiting."
+    exit
+  fi
 fi
 
 # Print summary
-echo "Number of vectors: "$N2
-echo "Number of scalars: "$N3
+echo -e "Number of vectors: "${Cyan} $N2 ${Color_Off}
+echo -e "Number of scalars: "${Cyan} $N3 ${Color_Off}
 echo -e "found scalars : " ${Cyan} ${scalars[@]} ${Color_Off}
 echo -e "found vectors : " ${Cyan} ${vectors[@]} ${Color_Off}
 
 
 # Look for time steps
 if [ $N3 != 0 ]; then
-    # echo "Look for time with scalars."
+  # echo "Look for time with scalars."
+  i=0
+  for F in `ls ${scalars[0]}*.${ending}`
+  do
+    time=${F%%.${ending}}
+    time=${time##${scalars[0]}}
+    time=${time##_}
+
+    all_times[i]=${time}
+    i=$((i+1))
+
+    echo $time >> ./timesteps.in
+  done
+else
+  if [ $N2 != 0 ]; then
+    # echo "Look for time with vectors."
     i=0
-    for F in `ls ${scalars[0]}*.${ending}`
+    for F in `ls ${vectors[0]}x*.${ending}`
     do
-	time=${F%%.${ending}}
-	time=${time##${scalars[0]}}
-	time=${time##_}
-	
-	all_times[i]=${time}
-	i=$((i+1))
-	
-	echo $time >> ./timesteps.in
+      time=${F%%.${ending}}
+      time=${time##${vectors[0]}}
+      time=${time##x_}
+
+      all_times[i]=${time}
+      i=$((i+1))
+
+      echo $time >> ./timesteps.in
     done
-else 
-    if [ $N2 != 0 ]; then
-	# echo "Look for time with vectors."
-	i=0
-	for F in `ls ${vectors[0]}x*.${ending}`
-	do
-	    time=${F%%.${ending}}
-	    time=${time##${vectors[0]}}
-	    time=${time##x_}
-	    
-	    all_times[i]=${time}
-	    i=$((i+1))
-	    
-	    echo $time >> ./timesteps.in
-    done
-    fi
+  fi
 fi
 
 echo -e "found times :   " ${Cyan} ${all_times[@]} ${Color_Off}
@@ -183,21 +225,20 @@ echo "Do you want to create one ALL.xmf file with all time steps or one xmf-file
 echo "[return] for ALL.xmf, (i) for individual files"
 read all
 
-
-if [ $all == "i" ]; then
-   # by choice, we create one XMF file PER time step. This is handy for very large data sets.
-   for time in ${all_times[@]}
-   do
-       rm -f timesteps.in
-       echo $time >> ./timesteps.in
-       # Create All.xmf using the FORTRAN converter
-       convert_hdf2xmf
-       mv ALL.xmf $time.xmf
-   done
-else 
-   # Create All.xmf using the FORTRAN converter
-   convert_hdf2xmf
+if [ "$all" == "i" ]; then
+  # by choice, we create one XMF file PER time step. This is handy for very large data sets.
+  for time in ${all_times[@]}
+  do
+    rm -f timesteps.in
+    echo $time >> ./timesteps.in
+    # Create All.xmf using the FORTRAN converter
+    convert_hdf2xmf
+    mv ALL.xmf $time.xmf
+  done
+else
+  # Create All.xmf using the FORTRAN converter
+  convert_hdf2xmf
 fi
 
 # Remove temporary files.
-rm -f timesteps.in prefixes_vector.in prefixes_scalar.in
+rm -f timesteps.in prefixes_vector.in prefixes_scalar.in STRIDE.in

@@ -7,18 +7,26 @@ program hdf2xml
   character prefixes_scalar(100)*10 ! maximal 100 prefixes à 10 chars length
   character prefixes_vector(100)*10 ! maximal 100 prefixes à 10 chars length
   character timesteps(10000)*10 ! maximal 10000 time steps à 10 chars length
-  LOGICAL :: file_exists, scalars_exist, vectors_exist
-  
+  LOGICAL :: file_exists, scalars_exist, vectors_exist, stride
+
   write (*,*) "-------------------------"
   write (*,*) " Fortran XMF generator"
   write (*,*) "-------------------------"
-  
+
+  ! check if the file STRIDE.in exists and if it does, we load just every second
+  ! point (hyperslab in HDF5). This help visualizing large data sets.
+  INQUIRE(FILE='STRIDE.in', EXIST=stride)
+
+  if (stride) then
+    write(*,*) "STRIDE==YES so we create an xml file that load only every 2nd point!!"
+  endif
+
   !---------------------------------------------------------------------
   ! read in LIST OF scalar prefixes.  note it is mandatory to follow
   ! file naming convention.  for a file mask_00010.h5 "mask" is in
   ! this file
   ! ---------------------------------------------------------------------
-  INQUIRE(FILE='prefixes_scalar.in', EXIST=scalars_exist) 
+  INQUIRE(FILE='prefixes_scalar.in', EXIST=scalars_exist)
   if(scalars_exist) then
      io_error=0
      open (15, file='prefixes_scalar.in', action='read', status='old' )
@@ -75,8 +83,8 @@ program hdf2xml
   ! 00015
   ! 00020 etc
   !--------------------------------------------------
-  
-  INQUIRE(FILE='timesteps.in', EXIST=file_exists) 
+
+  INQUIRE(FILE='timesteps.in', EXIST=file_exists)
   if(file_exists) then
      io_error=0
      open (15, file='timesteps.in', action='read', status='old' )
@@ -99,16 +107,19 @@ program hdf2xml
   endif
   ! Now we know how many vectors we have and what their names are
 
-  !--------------------------------------
-  ! Create the main *.xmf file
-  !--------------------------------------
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! Create the main *.xml file
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+
   open (14, file='ALL.xmf', status='replace')
 
   ! Read the resolution so that we can call BeginFile.
   if(scalars_exist) then
      call Fetch_attributes (trim(adjustl(prefixes_scalar(1)))//"_"//trim(adjustl(timesteps(1)))//".h5",&
           trim(adjustl(prefixes_scalar(1))), nx,ny,nz,xl,yl,zl,time)
-  endif  
+  endif
 
   if(vectors_exist) then
      call Fetch_attributes(trim(adjustl(prefixes_vector(1)))//"x_"//trim(adjustl(timesteps(1)))//".h5",&
@@ -119,45 +130,45 @@ program hdf2xml
   call BeginFile(nx,ny,nz)
 
   ! begin loops over time steps
-  do idt = 1, ndt  
+  do idt = 1, ndt
      ! Get the time from any of these files
      if(scalars_exist) then
         call Fetch_attributes (trim(adjustl(prefixes_scalar(1)))//"_"//trim(adjustl(timesteps(idt)))//".h5",&
-             trim(adjustl(prefixes_scalar(1))), nx,ny,nz,xl,yl,zl,time)  
+             trim(adjustl(prefixes_scalar(1))), nx,ny,nz,xl,yl,zl,time)
      endif
 
      if(vectors_exist) then
         call Fetch_attributes (trim(adjustl(prefixes_vector(1)))//"x_"//trim(adjustl(timesteps(idt)))//".h5",&
-             trim(adjustl(prefixes_vector(1)))//"x", nx,ny,nz,xl,yl,zl,time)  
+             trim(adjustl(prefixes_vector(1)))//"x", nx,ny,nz,xl,yl,zl,time)
      endif
 
      ! Time step header
-     call BeginTimeStep(nx,ny,nz,xl,yl,zl,time)  
+     call BeginTimeStep(nx,ny,nz,xl,yl,zl,time, stride)
 
      ! Scalars
      if(scalars_exist) then
         do iscal = 1, nscal
            call WriteScalar(trim(adjustl(timesteps(idt))),&
                 trim(adjustl(prefixes_scalar(iscal))),&
-                nx,ny,nz,xl,yl ,zl,time)
+                nx,ny,nz,xl,yl ,zl,time, stride)
         end do
      endif
 
      ! Vectors
      if(vectors_exist) then
-        do ivec = 1, nvec  
+        do ivec = 1, nvec
            call WriteVector(trim(adjustl(timesteps(idt))),&
                 trim(adjustl(prefixes_vector(ivec))),&
-                nx,ny,nz,xl,yl,zl,time)
+                nx,ny,nz,xl,yl,zl,time, stride)
         enddo
      endif
 
      ! Time step footer
-     call EndTimeStep()  
+     call EndTimeStep()
   enddo
 
   ! file footer
-  call EndFile()  
+  call EndFile()
 
   close (14)
 end program hdf2xml
@@ -167,20 +178,26 @@ subroutine BeginFile(nx,ny,nz)
   implicit none
   integer, parameter :: pr = 8
   integer, intent (in) :: nx, ny, nz
-  character (len=128) :: nxyz_str 
+  character (len=128) :: nxyz_str
 
   ! NB: indices output in z,y,x order. (C vs Fortran ordering?)
-  write (nxyz_str,'(3(i4.4,1x))') nz, ny, nx 
+  write (nxyz_str,'(3(i4.4,1x))') nz, ny, nx
   write (*,'("Resolution: ",3(i4,1x) )') nx, ny, nz
 
   write (14,'(A)') '<?xml version="1.0" ?>'
   write (14,'(A)') '<!DOCTYPE Xdmf SYSTEM "Xdmf.dtd" ['
   write (14,'(A)') '<!ENTITY nxnynz "'//trim(adjustl(nxyz_str))//'">'
+  ! write also half the resolutio to XMF file since we might use it
+  ! if striding is active!
+  write (nxyz_str,'(3(i4.4,1x))') nz/2, ny/2, nx/2
+  write (14,'(A)') '<!ENTITY subnxnynz "'//trim(adjustl(nxyz_str))//'">'
   write (14,'(A)') ']>'
   write (14,'(A)') '<Xdmf Version="2.0">  '
   write (14,'(A)') '<Domain>  '
   write (14,'(A)') '<Grid Name="Box" GridType="Collection" CollectionType="Temporal">'
 end subroutine BeginFile
+
+
 
 
 subroutine EndFile()
@@ -191,30 +208,51 @@ subroutine EndFile()
 end subroutine EndFile
 
 
-subroutine BeginTimeStep( nx, ny, nz, xl, yl ,zl, time )
+
+
+subroutine BeginTimeStep( nx, ny, nz, xl, yl ,zl, time, stride )
   implicit none
   integer, parameter :: pr = 8
   integer, intent (in) :: nx, ny, nz
   real (kind=pr), intent(in) :: xl,yl,zl, time
   character (len=128) :: time_string
+  logical, intent(in)  :: stride
 
   write (time_string,'(es15.8)') time
-
-  write (14,'(A)') '<!-- beginning time step -->    '
-  write (14,'(A)') '<Grid Name="FLUSI_cartesian_grid" GridType="Uniform">'
-  write (14,'(A)') '    <Time Value="'//trim(adjustl(time_string))//'" />'
-  write (14,'(A)') '    <Topology TopologyType="3DCoRectMesh" Dimensions="&nxnynz;" />'
-  write (14,'(A)') ' '
-  write (14,'(A)') '    <Geometry GeometryType="Origin_DxDyDz">'
-  write (14,'(A)') '    <DataItem Dimensions="3" NumberType="Float" Format="XML">'
-  write (14,'(A)') '    0 0 0'
-  write (14,'(A)') '    </DataItem>'
-  write (14,'(A)') '    <DataItem Dimensions="3" NumberType="Float" Format="XML">'
-  ! NB: indices output in z,y,x order. (C vs Fortran ordering?)
-  write (14,'(4x,3(es15.8,1x))') zl/dble(nz), yl/dble(ny), xl/dble(nx)
-  write (14,'(A)') '    </DataItem>'
-  write (14,'(A)') '    </Geometry>'  
+  if (stride) then
+    write (14,'(A)') '<!-- beginning time step -->    '
+    write (14,'(A)') '<Grid Name="FLUSI_cartesian_grid" GridType="Uniform">'
+    write (14,'(A)') '    <Time Value="'//trim(adjustl(time_string))//'" />'
+    write (14,'(A)') '    <Topology TopologyType="3DCoRectMesh" Dimensions="&subnxnynz;" />'
+    write (14,'(A)') ' '
+    write (14,'(A)') '    <Geometry GeometryType="Origin_DxDyDz">'
+    write (14,'(A)') '    <DataItem Dimensions="3" NumberType="Float" Format="XML">'
+    write (14,'(A)') '    0 0 0'
+    write (14,'(A)') '    </DataItem>'
+    write (14,'(A)') '    <DataItem Dimensions="3" NumberType="Float" Format="XML">'
+    ! NB: indices output in z,y,x order. (C vs Fortran ordering?)
+    write (14,'(4x,3(es15.8,1x))') 2.d0*zl/dble(nz), 2.d0*yl/dble(ny), 2.d0*xl/dble(nx)
+    write (14,'(A)') '    </DataItem>'
+    write (14,'(A)') '    </Geometry>'
+  else
+    write (14,'(A)') '<!-- beginning time step -->    '
+    write (14,'(A)') '<Grid Name="FLUSI_cartesian_grid" GridType="Uniform">'
+    write (14,'(A)') '    <Time Value="'//trim(adjustl(time_string))//'" />'
+    write (14,'(A)') '    <Topology TopologyType="3DCoRectMesh" Dimensions="&nxnynz;" />'
+    write (14,'(A)') ' '
+    write (14,'(A)') '    <Geometry GeometryType="Origin_DxDyDz">'
+    write (14,'(A)') '    <DataItem Dimensions="3" NumberType="Float" Format="XML">'
+    write (14,'(A)') '    0 0 0'
+    write (14,'(A)') '    </DataItem>'
+    write (14,'(A)') '    <DataItem Dimensions="3" NumberType="Float" Format="XML">'
+    ! NB: indices output in z,y,x order. (C vs Fortran ordering?)
+    write (14,'(4x,3(es15.8,1x))') zl/dble(nz), yl/dble(ny), xl/dble(nx)
+    write (14,'(A)') '    </DataItem>'
+    write (14,'(A)') '    </Geometry>'
+  endif
 end subroutine BeginTimeStep
+
+
 
 
 subroutine EndTimeStep ( )
@@ -223,51 +261,149 @@ subroutine EndTimeStep ( )
 end subroutine EndTimeStep
 
 
-subroutine WriteVector( basefilename, prefix, nx, ny, nz, xl, yl ,zl, time )
+
+
+subroutine WriteVector( basefilename, prefix, nx, ny, nz, xl, yl ,zl, time, stride )
   implicit none
   integer, parameter :: pr = 8
   integer, intent (in) :: nx, ny, nz
   real (kind=pr), intent(in) :: xl,yl,zl, time
   character (len=*), intent (in) :: basefilename, prefix
-
-  !   write (*,*) "vector: ", prefix, basefilename
-
-  write (14,'(A)') '    <!--Vector-->'
-  write (14,'(A)') '    <Attribute Name="'//prefix//'" AttributeType="Vector" Center="Node">'
-  write (14,'(A)') '    <DataItem ItemType="Function" Function="JOIN($0, $1, $2)" Dimensions="&nxnynz; 3" NumberType="Float">'
-  write (14,'(A)') '        <DataItem Dimensions="&nxnynz;" NumberType="Float" Format="HDF">'
-  write (14,'(A)') '        '//prefix//'x_'//basefilename//'.h5:/'//prefix//'x'
-  write (14,'(A)') '        </DataItem>'
-  write (14,'(A)') '        '
-  write (14,'(A)') '        <DataItem Dimensions="&nxnynz;" NumberType="Float" Format="HDF">'
-  write (14,'(A)') '        '//prefix//'y_'//basefilename//'.h5:/'//prefix//'y'
-  write (14,'(A)') '        </DataItem>'
-  write (14,'(A)') '        '
-  write (14,'(A)') '        <DataItem Dimensions="&nxnynz;" NumberType="Float" Format="HDF">'
-  write (14,'(A)') '        '//prefix//'z_'//basefilename//'.h5:/'//prefix//'z'
-  write (14,'(A)') '        </DataItem>     '
-  write (14,'(A)') '    </DataItem>'
-  write (14,'(A)') '    </Attribute>    '
+  logical, intent(in)  :: stride
+  if (stride) then
+    write (14,'(A)') '    '
+    write (14,'(A)') '    <!--Vector-->    '
+    write (14,'(A)') '    <Attribute Name="'//prefix//'" AttributeType="Vector" Center="Node">'
+    write (14,'(A)') '    <DataItem ItemType="Function" Function="JOIN($0, $1, $2)" &
+      &Dimensions="&subnxnynz; 3" NumberType="Float">    '
+    write (14,'(A)') '      <!--x-component-->    '
+    write (14,'(A)') '      <DataItem ItemType="HyperSlab"    '
+    write (14,'(A)') '        Dimensions="&subnxnynz;"    '
+    write (14,'(A)') '        Type="HyperSlab">    '
+    write (14,'(A)') '        <DataItem    '
+    write (14,'(A)') '          Dimensions="3 3"    '
+    write (14,'(A)') '          Format="XML">    '
+    write (14,'(A)') '          1 1 1    '
+    write (14,'(A)') '          2 2 2    '
+    write (14,'(A)') '          &subnxnynz;    '
+    write (14,'(A)') '        </DataItem>    '
+    write (14,'(A)') '        <DataItem    '
+    write (14,'(A)') '           NumberType="Float"    '
+    write (14,'(A)') '           Dimensions="&nxnynz;"    '
+    write (14,'(A)') '           Format="HDF">    '
+    write (14,'(A)') '           '//prefix//'x_'//basefilename//'.h5:/'//prefix//'x'
+    write (14,'(A)') '        </DataItem>    '
+    write (14,'(A)') '       </DataItem>    '
+    write (14,'(A)') '      <!--y-component-->    '
+    write (14,'(A)') '      <DataItem ItemType="HyperSlab"    '
+    write (14,'(A)') '        Dimensions="&subnxnynz;"    '
+    write (14,'(A)') '        Type="HyperSlab">    '
+    write (14,'(A)') '        <DataItem    '
+    write (14,'(A)') '          Dimensions="3 3"    '
+    write (14,'(A)') '          Format="XML">    '
+    write (14,'(A)') '          1 1 1    '
+    write (14,'(A)') '          2 2 2    '
+    write (14,'(A)') '          &subnxnynz;    '
+    write (14,'(A)') '        </DataItem>    '
+    write (14,'(A)') '        <DataItem    '
+    write (14,'(A)') '           NumberType="Float"    '
+    write (14,'(A)') '           Dimensions="&nxnynz;"    '
+    write (14,'(A)') '           Format="HDF">    '
+    write (14,'(A)') '           '//prefix//'y_'//basefilename//'.h5:/'//prefix//'y'
+    write (14,'(A)') '        </DataItem>    '
+    write (14,'(A)') '       </DataItem>    '
+    write (14,'(A)') '      <!--z-component-->    '
+    write (14,'(A)') '      <DataItem ItemType="HyperSlab"    '
+    write (14,'(A)') '        Dimensions="&subnxnynz;"    '
+    write (14,'(A)') '        Type="HyperSlab">    '
+    write (14,'(A)') '        <DataItem    '
+    write (14,'(A)') '          Dimensions="3 3"    '
+    write (14,'(A)') '          Format="XML">    '
+    write (14,'(A)') '          1 1 1    '
+    write (14,'(A)') '          2 2 2    '
+    write (14,'(A)') '          &subnxnynz;    '
+    write (14,'(A)') '        </DataItem>    '
+    write (14,'(A)') '        <DataItem    '
+    write (14,'(A)') '           NumberType="Float"    '
+    write (14,'(A)') '           Dimensions="&nxnynz;"    '
+    write (14,'(A)') '           Format="HDF">    '
+    write (14,'(A)') '           '//prefix//'z_'//basefilename//'.h5:/'//prefix//'z'
+    write (14,'(A)') '        </DataItem>    '
+    write (14,'(A)') '       </DataItem>    '
+    write (14,'(A)') '    </DataItem>    '
+    write (14,'(A)') '    </Attribute>    '
+  else
+    write (14,'(A)') '    '
+    write (14,'(A)') '    <!--Vector-->'
+    write (14,'(A)') '    <Attribute Name="'//prefix//'" AttributeType="Vector" Center="Node">'
+    write (14,'(A)') '    <DataItem ItemType="Function" Function="JOIN($0, $1, $2)" Dimensions="&nxnynz; 3" NumberType="Float">'
+    write (14,'(A)') '        <DataItem Dimensions="&nxnynz;" NumberType="Float" Format="HDF">'
+    write (14,'(A)') '        '//prefix//'x_'//basefilename//'.h5:/'//prefix//'x'
+    write (14,'(A)') '        </DataItem>'
+    write (14,'(A)') '        '
+    write (14,'(A)') '        <DataItem Dimensions="&nxnynz;" NumberType="Float" Format="HDF">'
+    write (14,'(A)') '        '//prefix//'y_'//basefilename//'.h5:/'//prefix//'y'
+    write (14,'(A)') '        </DataItem>'
+    write (14,'(A)') '        '
+    write (14,'(A)') '        <DataItem Dimensions="&nxnynz;" NumberType="Float" Format="HDF">'
+    write (14,'(A)') '        '//prefix//'z_'//basefilename//'.h5:/'//prefix//'z'
+    write (14,'(A)') '        </DataItem>     '
+    write (14,'(A)') '    </DataItem>'
+    write (14,'(A)') '    </Attribute>    '
+  endif
 end subroutine WriteVector
 
 
-subroutine WriteScalar ( basefilename, prefix, nx, ny, nz, xl, yl ,zl, time )
+
+
+
+subroutine WriteScalar ( basefilename, prefix, nx, ny, nz, xl, yl ,zl, time, stride )
   implicit none
 
   integer, parameter :: pr = 8
   integer, intent (in) :: nx, ny, nz
   real (kind=pr), intent(in) :: xl,yl,zl, time
   character (len=*), intent (in) :: basefilename, prefix
-
+  logical, intent(in)  :: stride
   !   write (*,*) "writing scalar ", basefilename, " ", prefix
 
-  write (14,'(A)') '    <!--Scalar-->'
-  write (14,'(A)') '    <Attribute Name="'//prefix//'" AttributeType="Scalar" Center="Node">'
-  write (14,'(A)') '    <DataItem Dimensions="&nxnynz;" NumberType="Float" Format="HDF">'
-  write (14,'(A)') '    '//prefix//'_'//basefilename//'.h5:/'//prefix
-  write (14,'(A)') '    </DataItem>'
-  write (14,'(A)') '    </Attribute>'  
+  if(stride) then
+    ! striding is active so we skip a lot of points :)
+    write (14,'(A)') '    '
+    write (14,'(A)') '    <!--Scalar-->'
+    write (14,'(A)') '    <Attribute Name="'//prefix//'" AttributeType="Scalar" Center="Node">'
+    write (14,'(A)') '    <DataItem ItemType="HyperSlab"'
+    write (14,'(A)') '      Dimensions="&subnxnynz;"'
+    write (14,'(A)') '      Type="HyperSlab">'
+    write (14,'(A)') '      <DataItem'
+    write (14,'(A)') '        Dimensions="3 3" '
+    write (14,'(A)') '        Format="XML">'
+    write (14,'(A)') '        1 1 1' ! this is start
+	  write (14,'(A)') '        2 2 2' ! this is stride
+    write (14,'(A)') '        &subnxnynz;' ! this is count
+    write (14,'(A)') '      </DataItem>'
+    write (14,'(A)') '      <DataItem'
+    write (14,'(A)') '        Name="mask"'
+    write (14,'(A)') '        Dimensions="&nxnynz;"'
+    write (14,'(A)') '        Format="HDF">'
+    write (14,'(A)') '        '//prefix//'_'//basefilename//'.h5:/'//prefix
+    write (14,'(A)') '      </DataItem>'
+    write (14,'(A)') '    </DataItem>'
+    write (14,'(A)') '    </Attribute>'
+
+  else
+    ! no striding, read the entire HDF5 file
+    write (14,'(A)') '    '
+    write (14,'(A)') '    <!--Scalar-->'
+    write (14,'(A)') '    <Attribute Name="'//prefix//'" AttributeType="Scalar" Center="Node">'
+    write (14,'(A)') '    <DataItem Dimensions="&nxnynz;" NumberType="Float" Format="HDF">'
+    write (14,'(A)') '    '//prefix//'_'//basefilename//'.h5:/'//prefix
+    write (14,'(A)') '    </DataItem>'
+    write (14,'(A)') '    </Attribute>'
+  endif
 end subroutine WriteScalar
+
+
 
 
 !----------------------------------------------------
