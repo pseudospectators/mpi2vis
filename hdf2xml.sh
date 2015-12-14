@@ -37,9 +37,9 @@
 #
 # processes u, full vector, but not us, also mask.
 #
-# hdf2xml.sh -p "mask,iy,usz"
+# hdf2xml.sh -p mask,iy,usz
 #
-# uses only the list of comma separated prefixes. do not forget the quotes!
+# uses only the list of comma separated prefixes
 
 
 # note the *.h5 files must contain the attributes "nxyz", "time",
@@ -56,49 +56,55 @@ Blue='\e[0;34m'         # Blue
 Purple='\e[0;35m'       # Purple
 Cyan='\e[0;36m'         # Cyan
 
-echo -e $Green "*************************************************" $Color_Off
-echo -e $Green "**      HDF2XMF                                **" $Color_Off
-echo -e $Green "** ./hdf2xml.sh -i [INCLUDE] -e [EXCLUDE] -s   **" $Color_Off
-echo -e $Green "**  -s Striding. Use only every 2nd grid point **" $Color_Off
-echo -e $Green "**  -i prefixes to include                     **" $Color_Off
-echo -e $Green "**  -e prefixes to exclude                     **" $Color_Off
-echo -e $Green "**  -p specifiy prefixed manually              **" $Color_Off
-echo -e $Green "**  -o specifiy outfile                        **" $Color_Off
-echo -e $Green "*************************************************" $Color_Off
-echo -e $Green "** Read full files u, but not mask:            **" $Color_Off
-echo -e $Green "** ./hdf2xml.sh -i u -e mask                   **" $Color_Off
-echo -e $Green "*************************************************" $Color_Off
-echo -e $Green "** Read full files u,mask, but not us:         **" $Color_Off
-echo -e $Green "** ./hdf2xml.sh -i [u,mask] -e us              **" $Color_Off
-echo -e $Green "*************************************************" $Color_Off
-echo -e $Green "** Read full files u,mask, but not us:         **" $Color_Off
-echo -e $Green "** ./hdf2xml.sh -p \"ux,uy,uz,mask\"             **" $Color_Off
-echo -e $Green "** do not forget to set the quotes !!          **" $Color_Off
-echo -e $Green "*************************************************" $Color_Off
+echo -e $Green "******************************************************" $Color_Off
+echo -e $Green "**      HDF2XMF                                     **" $Color_Off
+echo -e $Green "** ./hdf2xml.sh -i [INCLUDE] -e [EXCLUDE] -s        **" $Color_Off
+echo -e $Green "**  -s Striding. Use only every 2nd grid point      **" $Color_Off
+echo -e $Green "**  -i prefixes to include                          **" $Color_Off
+echo -e $Green "**  -e prefixes to exclude                          **" $Color_Off
+echo -e $Green "**  -p specifiy prefixes manually                   **" $Color_Off
+echo -e $Green "**  -t specifiy timesteps manually                  **" $Color_Off
+echo -e $Green "**  -o specifiy outfile                             **" $Color_Off
+echo -e $Green "**--------------------------------------------------**" $Color_Off
+echo -e $Green "** Read full files u, but not mask:                 **" $Color_Off
+echo -e $Green "** ./hdf2xml.sh -i u -e mask                        **" $Color_Off
+echo -e $Green "**--------------------------------------------------**" $Color_Off
+echo -e $Green "** Read full files u,mask, but not us:              **" $Color_Off
+echo -e $Green "** ./hdf2xml.sh -i [u,mask] -e us                   **" $Color_Off
+echo -e $Green "**--------------------------------------------------**" $Color_Off
+echo -e $Green "** Read full files u,mask, but not us:              **" $Color_Off
+echo -e $Green "** ./hdf2xml.sh -p ux,uy,uz,mask                    **" $Color_Off
+echo -e $Green "**--------------------------------------------------**" $Color_Off
+echo -e $Green "** ./hdf2xml.sh -p vorabs,mask -t 000100,000200     **" $Color_Off
+echo -e $Green "** use vorabs and mask, but only for timesteps      **" $Color_Off
+echo -e $Green "** 000100 and 000200                                **" $Color_Off
+echo -e $Green "******************************************************" $Color_Off
 
 prefixes_in=""
 outfile="ALL.xmf"
 
 # parse options
-while getopts ':se:i:p:o:' OPTION ; do
+while getopts ':se:i:p:o:ht:' OPTION ; do
   case "$OPTION" in
     s)   echo -e ${Purple} "Use striding!" ${Color_Off} ; stride="y";;
     i)   echo -e "Include the following files" ${Purple} ${OPTARG} ${Color_Off} ; include=${OPTARG};;
     e)   echo -e "Exclude the following files" ${Purple} ${OPTARG} ${Color_Off} ; exclude=${OPTARG};;
     p)   echo -e "Use only prefixes" ${Purple} ${OPTARG} ${Color_Off} ; prefixes_in=${OPTARG};;
-    o)   echo -e "write to outfile" ${Purple} ${OPTARG} ${Color_Off} ; outfile=${OPTARG};;
+    o)   echo -e "Write to outfile" ${Purple} ${OPTARG} ${Color_Off} ; outfile=${OPTARG};;
+    t)   echo -e "Timesteps are" ${Purple} ${OPTARG} ${Color_Off} ; timesteps_desired=${OPTARG};;
+    h)   exit 0;;
     *)   echo "Unknown parameter" ; exit 1 ;;
   esac
 done
 
-#-----------------------
+#-------------------------------------------------------------------------------
 # Delete old files
-#-----------------------
+#-------------------------------------------------------------------------------
 rm -f timesteps.in prefixes_vector.in prefixes_scalar.in STRIDE.in
 
-#-----------------------
+#-------------------------------------------------------------------------------
 # Find prefixes
-#-----------------------
+#-------------------------------------------------------------------------------
 # Look through all the files whose names end with *.h5 and put them in
 # the items array, as well as in the list, where file names are
 # separated with colons. N is the number of items in the list.
@@ -158,9 +164,9 @@ if [ "$stride" == "y" ] ; then
   touch STRIDE.in
 fi
 
-#-----------------------
+#-------------------------------------------------------------------------------
 # Indentify vectors and scalars from the prefixes
-#-----------------------
+#-------------------------------------------------------------------------------
 # Look through all prefixed in array items[] if a prefix ends with
 # "x", it's assumed to be the x-component of a vector.  the next 2
 # indices then will contain "y" and "z" component. we remove them
@@ -210,44 +216,53 @@ echo -e "found scalars : " ${Cyan} ${scalars[@]} ${Color_Off}
 echo -e "found vectors : " ${Cyan} ${vectors[@]} ${Color_Off}
 
 
+#-------------------------------------------------------------------------------
 # Look for time steps
-if [ $N3 != 0 ]; then
-  # echo "Look for time with scalars."
-  i=0
-  for F in `ls ${scalars[0]}*.${ending}`
-  do
-    time=${F%%.${ending}}
-    time=${time##${scalars[0]}}
-    time=${time##_}
+#-------------------------------------------------------------------------------
+if [ ! "$timesteps_desired" == "" ] ; then
+  # the list of prefixes with the -p option is a string
+  # with comma separated values. now we convert this string into an array:
+  IFS=',' read -r -a all_times <<< "$timesteps_desired"
 
-    all_times[i]=${time}
-    i=$((i+1))
-
-    echo $time >> ./timesteps.in
-  done
 else
-  if [ $N2 != 0 ]; then
-    # echo "Look for time with vectors."
+
+  if [ $N3 != 0 ]; then
+    # echo "Look for time with scalars."
     i=0
-    for F in `ls ${vectors[0]}x*.${ending}`
+    for F in `ls ${scalars[0]}*.${ending}`
     do
       time=${F%%.${ending}}
-      time=${time##${vectors[0]}}
-      time=${time##x_}
+      time=${time##${scalars[0]}}
+      time=${time##_}
 
       all_times[i]=${time}
       i=$((i+1))
 
       echo $time >> ./timesteps.in
     done
+  else
+    if [ $N2 != 0 ]; then
+      # echo "Look for time with vectors."
+      i=0
+      for F in `ls ${vectors[0]}x*.${ending}`
+      do
+        time=${F%%.${ending}}
+        time=${time##${vectors[0]}}
+        time=${time##x_}
+
+        all_times[i]=${time}
+        i=$((i+1))
+
+        echo $time >> ./timesteps.in
+      done
+    fi
   fi
 fi
-
 echo -e "found times :   " ${Cyan} ${all_times[@]} ${Color_Off}
 
 
 # check if some files do not exist and if so, yell at user.
-for prefix in $all_prefixes
+for prefix in ${all_prefixes[@]}
 do
   for tt in ${all_times[@]}
   do
@@ -257,7 +272,7 @@ do
   done
 done
 
-
+exit 1
 
 echo "Do you want to create one ALL.xmf file with all time steps or one xmf-file for each time step?"
 echo "[return] for ALL.xmf, (i) for individual files"
