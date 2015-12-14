@@ -36,6 +36,10 @@
 # ./hdf2xml.sh -i [u,mask] -e us
 #
 # processes u, full vector, but not us, also mask.
+#
+# hdf2xml.sh -p "mask,iy,usz"
+#
+# uses only the list of comma separated prefixes. do not forget the quotes!
 
 
 # note the *.h5 files must contain the attributes "nxyz", "time",
@@ -58,6 +62,8 @@ echo -e $Green "** ./hdf2xml.sh -i [INCLUDE] -e [EXCLUDE] -s   **" $Color_Off
 echo -e $Green "**  -s Striding. Use only every 2nd grid point **" $Color_Off
 echo -e $Green "**  -i prefixes to include                     **" $Color_Off
 echo -e $Green "**  -e prefixes to exclude                     **" $Color_Off
+echo -e $Green "**  -p specifiy prefixed manually              **" $Color_Off
+echo -e $Green "**  -o specifiy outfile                        **" $Color_Off
 echo -e $Green "*************************************************" $Color_Off
 echo -e $Green "** Read full files u, but not mask:            **" $Color_Off
 echo -e $Green "** ./hdf2xml.sh -i u -e mask                   **" $Color_Off
@@ -65,13 +71,22 @@ echo -e $Green "*************************************************" $Color_Off
 echo -e $Green "** Read full files u,mask, but not us:         **" $Color_Off
 echo -e $Green "** ./hdf2xml.sh -i [u,mask] -e us              **" $Color_Off
 echo -e $Green "*************************************************" $Color_Off
+echo -e $Green "** Read full files u,mask, but not us:         **" $Color_Off
+echo -e $Green "** ./hdf2xml.sh -p \"ux,uy,uz,mask\"             **" $Color_Off
+echo -e $Green "** do not forget to set the quotes !!          **" $Color_Off
+echo -e $Green "*************************************************" $Color_Off
+
+prefixes_in=""
+outfile="ALL.xmf"
 
 # parse options
-while getopts ':se:i:' OPTION ; do
+while getopts ':se:i:p:o:' OPTION ; do
   case "$OPTION" in
     s)   echo -e ${Purple} "Use striding!" ${Color_Off} ; stride="y";;
     i)   echo -e "Include the following files" ${Purple} ${OPTARG} ${Color_Off} ; include=${OPTARG};;
     e)   echo -e "Exclude the following files" ${Purple} ${OPTARG} ${Color_Off} ; exclude=${OPTARG};;
+    p)   echo -e "Use only prefixes" ${Purple} ${OPTARG} ${Color_Off} ; prefixes_in=${OPTARG};;
+    o)   echo -e "write to outfile" ${Purple} ${OPTARG} ${Color_Off} ; outfile=${OPTARG};;
     *)   echo "Unknown parameter" ; exit 1 ;;
   esac
 done
@@ -93,6 +108,49 @@ N=0
 lastp=""
 ending="h5"
 
+
+# the call to the script may predictate what prefixes to use
+if [ "$prefixes_in" != "" ] ; then
+  # the list of prefixes with the -p option is a string
+  # with comma separated values. now we convert this string into an array:
+  IFS=',' read -r -a items <<< "$prefixes_in"
+  N=${#items[@]}
+else
+  # no list of prefixes is given, so we look for them using the find command.
+  # it is possibly modified by the -e and -i options
+  # explicitly include these files
+  if [ "$include" == "" ] ; then
+    names_include=\*.${ending}
+  else
+    names_include=$include\*.${ending}
+  fi
+
+  # explicitly EXCLUDE these files:
+  if [ "$exclude" == "" ] ; then
+    names_exclude=""
+  else
+    names_exclude=$exclude\*.${ending}
+  fi
+
+
+  for F in `find . -maxdepth 1 -not -name "*backup*" -name "${names_include}" -not -name "${names_exclude}" | sort`
+  do
+    # as is the file name with everything after
+    # also remove the preceding ./ which shows up when one uses the
+    # find command.
+    p=$(echo ${F}  | sed 's/_[^_]*$//' | sed 's/\.\///')_
+    p=${p%%_}
+    if [ "$p" != "$lastp" ] ; then
+      lastp=$p
+      items[$N]=$p
+      N=$((N+1))
+    fi
+  done
+fi
+
+echo -e "found prefixes: " ${Cyan} ${items[@]} ${Color_Off}
+all_prefixes=${items[@]}
+
 if [ "$stride" == "y" ] ; then
   # the fortran program will check if the file STRIDE.in
   # exists and if it does, then we use striding
@@ -100,37 +158,6 @@ if [ "$stride" == "y" ] ; then
   touch STRIDE.in
 fi
 
-# explicitly include these files
-if [ "$include" == "" ] ; then
-  names_include=\*.${ending}
-else
-  names_include=$include\*.${ending}
-fi
-
-# explicitly EXCLUDE these files:
-if [ "$exclude" == "" ] ; then
-  names_exclude=""
-else
-  names_exclude=$exclude\*.${ending}
-fi
-
-
-for F in `find . -maxdepth 1 -not -name "*backup*" -name "${names_include}" -not -name "${names_exclude}" | sort`
-do
-  # as is the file name with everything after
-  # also remove the preceding ./ which shows up when one uses the
-  # find command.
-  p=$(echo ${F}  | sed 's/_[^_]*$//' | sed 's/\.\///')_
-  p=${p%%_}
-  if [ "$p" != "$lastp" ] ; then
-    lastp=$p
-    items[$N]=$p
-    N=$((N+1))
-  fi
-done
-
-echo -e "found prefixes: " ${Cyan} ${items[@]} ${Color_Off}
-all_prefixes=${items[@]}
 #-----------------------
 # Indentify vectors and scalars from the prefixes
 #-----------------------
@@ -250,6 +277,10 @@ else
   # Create All.xmf using the FORTRAN converter
   convert_hdf2xmf
 fi
+
+# rename file to what is desired (mostly ALL.xmf)
+# not ALL.xmf is erased in any case
+mv ALL.xmf $outfile
 
 # Remove temporary files.
 rm -f timesteps.in prefixes_vector.in prefixes_scalar.in STRIDE.in
