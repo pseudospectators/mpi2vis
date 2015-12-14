@@ -56,29 +56,35 @@ Blue='\e[0;34m'         # Blue
 Purple='\e[0;35m'       # Purple
 Cyan='\e[0;36m'         # Cyan
 
-echo -e $Green "******************************************************" $Color_Off
-echo -e $Green "**      HDF2XMF                                     **" $Color_Off
-echo -e $Green "** ./hdf2xml.sh -i [INCLUDE] -e [EXCLUDE] -s        **" $Color_Off
-echo -e $Green "**  -s Striding. Use only every 2nd grid point      **" $Color_Off
-echo -e $Green "**  -i prefixes to include                          **" $Color_Off
-echo -e $Green "**  -e prefixes to exclude                          **" $Color_Off
-echo -e $Green "**  -p specifiy prefixes manually                   **" $Color_Off
-echo -e $Green "**  -t specifiy timesteps manually                  **" $Color_Off
-echo -e $Green "**  -o specifiy outfile                             **" $Color_Off
-echo -e $Green "**--------------------------------------------------**" $Color_Off
-echo -e $Green "** Read full files u, but not mask:                 **" $Color_Off
-echo -e $Green "** ./hdf2xml.sh -i u -e mask                        **" $Color_Off
-echo -e $Green "**--------------------------------------------------**" $Color_Off
-echo -e $Green "** Read full files u,mask, but not us:              **" $Color_Off
-echo -e $Green "** ./hdf2xml.sh -i [u,mask] -e us                   **" $Color_Off
-echo -e $Green "**--------------------------------------------------**" $Color_Off
-echo -e $Green "** Read full files u,mask, but not us:              **" $Color_Off
-echo -e $Green "** ./hdf2xml.sh -p ux,uy,uz,mask                    **" $Color_Off
-echo -e $Green "**--------------------------------------------------**" $Color_Off
-echo -e $Green "** ./hdf2xml.sh -p vorabs,mask -t 000100,000200     **" $Color_Off
-echo -e $Green "** use vorabs and mask, but only for timesteps      **" $Color_Off
-echo -e $Green "** 000100 and 000200                                **" $Color_Off
-echo -e $Green "******************************************************" $Color_Off
+echo -e $Green "****************************************************" $Color_Off
+echo -e $Green "*      HDF2XMF  Manual                             *" $Color_Off
+echo -e $Green "* ./hdf2xml.sh -i -e -p -t -o -s                   *" $Color_Off
+echo -e $Green "*  -s Striding. Use only every 2nd grid point      *" $Color_Off
+echo -e $Green "*  -i prefixes to include                          *" $Color_Off
+echo -e $Green "*  -e prefixes to exclude                          *" $Color_Off
+echo -e $Green "*  -p specify prefixes manually                    *" $Color_Off
+echo -e $Green "*  -t specify timesteps manually                   *" $Color_Off
+echo -e $Green "*  -o specify outfile                              *" $Color_Off
+echo -e $Green "*--------------------------------------------------*" $Color_Off
+echo -e $Green "* Read full files u, but not mask:                 *" $Color_Off
+echo -e $Green "* ./hdf2xml.sh -i u -e mask                        *" $Color_Off
+echo -e $Green "*--------------------------------------------------*" $Color_Off
+echo -e $Green "* Read all files (automatic), use striding:        *" $Color_Off
+echo -e $Green "* ./hdf2xml.sh -s                                  *" $Color_Off
+echo -e $Green "*--------------------------------------------------*" $Color_Off
+echo -e $Green "* Read all files (automatic), write to NEW.xmf     *" $Color_Off
+echo -e $Green "* ./hdf2xml.sh -o NEW.xmf                          *" $Color_Off
+echo -e $Green "*--------------------------------------------------*" $Color_Off
+echo -e $Green "* Read full files u,mask, but not us:              *" $Color_Off
+echo -e $Green "* ./hdf2xml.sh -i [u,mask] -e us                   *" $Color_Off
+echo -e $Green "*--------------------------------------------------*" $Color_Off
+echo -e $Green "* Read full files ux,uy,uz,mask:                   *" $Color_Off
+echo -e $Green "* ./hdf2xml.sh -p ux,uy,uz,mask                    *" $Color_Off
+echo -e $Green "*--------------------------------------------------*" $Color_Off
+echo -e $Green "* ./hdf2xml.sh -p vorabs,mask -t 000100,000200     *" $Color_Off
+echo -e $Green "* read vorabs and mask, but only for timesteps     *" $Color_Off
+echo -e $Green "* 000100 and 000200                                *" $Color_Off
+echo -e $Green "****************************************************" $Color_Off
 
 prefixes_in=""
 outfile="ALL.xmf"
@@ -89,14 +95,14 @@ while getopts ':se:i:p:o:ht:' OPTION ; do
     s)   echo -e ${Purple} "Use striding!" ${Color_Off} ; stride="y";;
     i)   echo -e "Include the following files" ${Purple} ${OPTARG} ${Color_Off} ; include=${OPTARG};;
     e)   echo -e "Exclude the following files" ${Purple} ${OPTARG} ${Color_Off} ; exclude=${OPTARG};;
-    p)   echo -e "Use only prefixes" ${Purple} ${OPTARG} ${Color_Off} ; prefixes_in=${OPTARG};;
-    o)   echo -e "Write to outfile" ${Purple} ${OPTARG} ${Color_Off} ; outfile=${OPTARG};;
-    t)   echo -e "Timesteps are" ${Purple} ${OPTARG} ${Color_Off} ; timesteps_desired=${OPTARG};;
+    p)   echo -e "Use only prefixes          " ${Purple} ${OPTARG} ${Color_Off} ; prefixes_in=${OPTARG};;
+    o)   echo -e "Write to outfile           " ${Purple} ${OPTARG} ${Color_Off} ; outfile=${OPTARG};;
+    t)   echo -e "Timesteps are              " ${Purple} ${OPTARG} ${Color_Off} ; timesteps_desired=${OPTARG};;
     h)   exit 0;;
     *)   echo "Unknown parameter" ; exit 1 ;;
   esac
 done
-
+echo "Processing..."
 #-------------------------------------------------------------------------------
 # Delete old files
 #-------------------------------------------------------------------------------
@@ -220,9 +226,8 @@ if [ ! "$timesteps_desired" == "" ] ; then
   # the list of prefixes with the -p option is a string
   # with comma separated values. now we convert this string into an array:
   IFS=',' read -r -a all_times <<< "$timesteps_desired"
-
 else
-
+  # look yourself for present time steps
   if [ $N3 != 0 ]; then
     # echo "Look for time with scalars."
     i=0
@@ -231,11 +236,8 @@ else
       time=${F%%.${ending}}
       time=${time##${scalars[0]}}
       time=${time##_}
-
       all_times[i]=${time}
       i=$((i+1))
-
-      echo $time >> ./timesteps.in
     done
   else
     if [ $N2 != 0 ]; then
@@ -246,19 +248,24 @@ else
         time=${F%%.${ending}}
         time=${time##${vectors[0]}}
         time=${time##x_}
-
         all_times[i]=${time}
         i=$((i+1))
-
-        echo $time >> ./timesteps.in
       done
     fi
   fi
 fi
 echo -e "found times :   " ${Cyan} ${all_times[@]} ${Color_Off}
 
+# write list of time steps to file for FORTRAN converter
+for time in ${all_times[@]}
+do
+  echo $time >> ./timesteps.in
+done
 
+#-------------------------------------------------------------------------------
 # check if some files do not exist and if so, yell at user.
+#-------------------------------------------------------------------------------
+echo "Checking if all files exist..."
 for prefix in ${all_prefixes[@]}
 do
   for tt in ${all_times[@]}
@@ -269,8 +276,8 @@ do
   done
 done
 
-echo "Do you want to create one ALL.xmf file with all time steps or one xmf-file for each time step?"
-echo "[return] for ALL.xmf, (i) for individual files"
+echo "Do you want to create one *.xmf file with all time steps or one xmf-file for each time step?"
+echo "[return] for $outfile, (i) for individual files"
 read all
 
 if [ "$all" == "i" ]; then
@@ -279,18 +286,15 @@ if [ "$all" == "i" ]; then
   do
     rm -f timesteps.in
     echo $time >> ./timesteps.in
-    # Create All.xmf using the FORTRAN converter
-    convert_hdf2xmf
-    mv ALL.xmf $time.xmf
+    # Create xmf file for one time step using the FORTRAN converter
+    convert_hdf2xmf $time.xmf
   done
 else
-  # Create All.xmf using the FORTRAN converter
-  convert_hdf2xmf
+  # Create xmf file using the FORTRAN converter
+  convert_hdf2xmf $outfile
 fi
 
-# rename file to what is desired (mostly ALL.xmf)
-# not ALL.xmf is erased in any case
-mv ALL.xmf $outfile
+
 
 # Remove temporary files.
 rm -f timesteps.in prefixes_vector.in prefixes_scalar.in STRIDE.in

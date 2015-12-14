@@ -1,12 +1,13 @@
 program hdf2xml
   implicit none
   integer, parameter :: pr = 8
-  integer :: nx, ny, nz, nscal,nvec,ivec,ndt,idt, io_error=0,iscal
+  integer :: nx, ny, nz, nscal,nvec,ivec,ndt,idt,io_error=0,iscal
   real (kind=pr) :: time, xl, yl, zl
   character (len=5) :: basefilename
-  character prefixes_scalar(100)*10 ! maximal 100 prefixes à 10 chars length
-  character prefixes_vector(100)*10 ! maximal 100 prefixes à 10 chars length
-  character timesteps(10000)*10 ! maximal 10000 time steps à 10 chars length
+  character (len=80) :: ofilename
+  character prefixes_scalar(100)*80 ! maximal 100 prefixes à 80 chars length
+  character prefixes_vector(100)*80 ! maximal 100 prefixes à 80 chars length
+  character timesteps(10000)*80 ! maximal 10000 time steps à 80 chars length
   LOGICAL :: file_exists, scalars_exist, vectors_exist, stride
 
   write (*,*) "-------------------------"
@@ -20,6 +21,9 @@ program hdf2xml
   if (stride) then
     write(*,*) "STRIDE==YES so we create an xml file that load only every 2nd point!!"
   endif
+
+  call get_command_argument(1, ofilename)
+  write(*,*) "writing XMF to "//trim(adjustl(ofilename))
 
   !---------------------------------------------------------------------
   ! read in LIST OF scalar prefixes.  note it is mandatory to follow
@@ -35,7 +39,7 @@ program hdf2xml
      do while (io_error==0)
         read (15,'(A)',iostat=io_error) prefixes_scalar(nscal)
         if (io_error ==0) then ! pay a little attention here, else we go one too far
-           write (*,'(A)',advance='no') prefixes_scalar(nscal)
+           write (*,'(A,1x)',advance='no') trim(adjustl(prefixes_scalar(nscal)))
            nscal = nscal+1
         endif
      enddo
@@ -61,7 +65,7 @@ program hdf2xml
      do while (io_error==0)
         read (15,'(A)',iostat=io_error) prefixes_vector(nvec)
         if (io_error ==0) then ! pay a little attention here, else we go one too far
-           write (*,'(A)',advance='no') prefixes_vector(nvec)
+           write (*,'(A,1x)',advance='no') trim(adjustl(prefixes_vector(nvec)))
            nvec = nvec+1
         endif
      enddo
@@ -94,7 +98,7 @@ program hdf2xml
         read (15,'(A)',iostat=io_error) timesteps(ndt)
         if (io_error ==0) then ! pay a little attention here, else we
                                ! go one too far
-           write (*,'(A)',advance='no') timesteps(ndt)
+           write (*,'(A,1x)',advance='no') trim(adjustl(timesteps(ndt)))
            ndt = ndt+1
         endif
      enddo
@@ -113,7 +117,7 @@ program hdf2xml
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
 
-  open (14, file='ALL.xmf', status='replace')
+  open (14, file=ofilename, status='replace')
 
   ! Read the resolution so that we can call BeginFile.
   if(scalars_exist) then
