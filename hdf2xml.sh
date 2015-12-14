@@ -179,7 +179,6 @@ N3=0
 for (( i=0; i<N; i++ ))
 do
   # the prefix
-  # echo "treating " ${items[i]}
   p=${items[i]}
   if [ "${p:${#p}-1:${#p}}" == "x" ]; then
     # is the last char an "x"? yes -> delete following entries
@@ -189,14 +188,12 @@ do
     # the trailing "x" indicates a vector
     vectors[N2]=${p%%x} # collect entries for vector fields
     echo ${vectors[N2]} >> ./prefixes_vector.in
-    #echo "echoing "  ${vectors[N2]}
     N2=$((N2+1))
   else
     # no? it's a scalar.
     if [ "$p" != "" ]; then  # note empty values are not scalars (they are uy, uz but unset because of ux)
       scalars[N3]=${p}
       echo ${scalars[N3]} >> ./prefixes_scalar.in
-      #echo "echoing "  ${scalars[N3]}
       N3=$((N3+1))
     fi
   fi
@@ -271,8 +268,6 @@ do
     fi
   done
 done
-
-exit 1
 
 echo "Do you want to create one ALL.xmf file with all time steps or one xmf-file for each time step?"
 echo "[return] for ALL.xmf, (i) for individual files"
