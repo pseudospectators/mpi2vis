@@ -92,6 +92,7 @@ outfile="ALL.xmf"
 # for 3D data, the following converter is called, if the -2 option is set, we will
 # call a different one sepcialized for 2D data
 converter="convert_hdf2xmf"
+mode="3d"
 
 # parse options
 while getopts ':s2e:i:p:o:ht:' OPTION ; do
@@ -102,7 +103,7 @@ while getopts ':s2e:i:p:o:ht:' OPTION ; do
     p)   echo -e "Use only prefixes          " ${Purple} ${OPTARG} ${Color_Off} ; prefixes_in=${OPTARG};;
     o)   echo -e "Write to outfile           " ${Purple} ${OPTARG} ${Color_Off} ; outfile=${OPTARG};;
     t)   echo -e "Timesteps are              " ${Purple} ${OPTARG} ${Color_Off} ; timesteps_desired=${OPTARG};;
-    2)   echo -e ${Purple} "2D mode!" ${Color_Off} ; converter="convert_hdf2xmf_2d";;
+    2)   echo -e ${Purple} "2D mode!" ${Color_Off} ; converter="convert_hdf2xmf_2d" ; mode="2d";;
     h)   exit 0;;
     *)   echo "Unknown parameter" ; exit 1 ;;
   esac
@@ -194,8 +195,10 @@ do
   if [ "${p:${#p}-1:${#p}}" == "x" ]; then
     # is the last char an "x"? yes -> delete following entries
     unset items[i+1]
-    # delete next two entrys (with y and z ending, hopefully)
-    unset items[i+2]
+    if [ "$mode" == "3d" ]; then
+      # delete next two entrys (with y and z ending, hopefully)
+      unset items[i+2]
+    fi
     # the trailing "x" indicates a vector
     vectors[N2]=${p%%x} # collect entries for vector fields
     echo ${vectors[N2]} >> ./prefixes_vector.in

@@ -179,7 +179,7 @@ subroutine BeginFile(nx,ny)
 
   ! NB: indices output in z,y,x order. (C vs Fortran ordering?)
   write (nxyz_str,'(2(i4.4,1x))') ny, nx
-  write (*,'("Resolution: ",3(i4,1x) )') nx, ny
+  write (*,'("Resolution: ",2(i4,1x) )') nx, ny
 
   write (14,'(A)') '<?xml version="1.0" ?>'
   write (14,'(A)') '<!DOCTYPE Xdmf SYSTEM "Xdmf.dtd" ['
@@ -222,10 +222,10 @@ subroutine BeginTimeStep( nx, ny, xl, yl , time )
   write (14,'(A)') '    <Topology TopologyType="2DCoRectMesh" Dimensions="&nxnynz;" />'
   write (14,'(A)') ' '
   write (14,'(A)') '    <Geometry GeometryType="Origin_DxDyDz">'
-  write (14,'(A)') '    <DataItem Dimensions="3" NumberType="Float" Format="XML">'
+  write (14,'(A)') '    <DataItem Dimensions="2" NumberType="Float" Format="XML">'
   write (14,'(A)') '    0 0'
   write (14,'(A)') '    </DataItem>'
-  write (14,'(A)') '    <DataItem Dimensions="3" NumberType="Float" Format="XML">'
+  write (14,'(A)') '    <DataItem Dimensions="2" NumberType="Float" Format="XML">'
   ! NB: indices output in z,y,x order. (C vs Fortran ordering?)
   write (14,'(4x,2(es15.8,1x))')  yl/dble(ny), xl/dble(nx)
   write (14,'(A)') '    </DataItem>'
