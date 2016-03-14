@@ -65,6 +65,7 @@ echo -e $Green "*  -e prefixes to exclude                          *" $Color_Off
 echo -e $Green "*  -p specify prefixes manually                    *" $Color_Off
 echo -e $Green "*  -t specify timesteps manually                   *" $Color_Off
 echo -e $Green "*  -o specify outfile                              *" $Color_Off
+echo -e $Green "*  -2 use two dimensional data                     *" $Color_Off
 echo -e $Green "*--------------------------------------------------*" $Color_Off
 echo -e $Green "* Read full files u, but not mask:                 *" $Color_Off
 echo -e $Green "* ./hdf2xml.sh -i u -e mask                        *" $Color_Off
@@ -88,9 +89,12 @@ echo -e $Green "****************************************************" $Color_Off
 
 prefixes_in=""
 outfile="ALL.xmf"
+# for 3D data, the following converter is called, if the -2 option is set, we will
+# call a different one sepcialized for 2D data
+converter="convert_hdf2xmf"
 
 # parse options
-while getopts ':se:i:p:o:ht:' OPTION ; do
+while getopts ':s2e:i:p:o:ht:' OPTION ; do
   case "$OPTION" in
     s)   echo -e ${Purple} "Use striding!" ${Color_Off} ; stride="y";;
     i)   echo -e "Include the following files" ${Purple} ${OPTARG} ${Color_Off} ; include=${OPTARG};;
@@ -98,6 +102,7 @@ while getopts ':se:i:p:o:ht:' OPTION ; do
     p)   echo -e "Use only prefixes          " ${Purple} ${OPTARG} ${Color_Off} ; prefixes_in=${OPTARG};;
     o)   echo -e "Write to outfile           " ${Purple} ${OPTARG} ${Color_Off} ; outfile=${OPTARG};;
     t)   echo -e "Timesteps are              " ${Purple} ${OPTARG} ${Color_Off} ; timesteps_desired=${OPTARG};;
+    2)   echo -e ${Purple} "2D mode!" ${Color_Off} ; converter="convert_hdf2xmf_2d";;
     h)   exit 0;;
     *)   echo "Unknown parameter" ; exit 1 ;;
   esac
@@ -287,11 +292,11 @@ if [ "$all" == "i" ]; then
     rm -f timesteps.in
     echo $time >> ./timesteps.in
     # Create xmf file for one time step using the FORTRAN converter
-    convert_hdf2xmf $time.xmf
+    $converter $time.xmf
   done
 else
   # Create xmf file using the FORTRAN converter
-  convert_hdf2xmf $outfile
+  $converter $outfile
 fi
 
 
