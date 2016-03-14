@@ -221,7 +221,7 @@ subroutine BeginTimeStep( nx, ny, xl, yl , time )
   write (14,'(A)') '    <Time Value="'//trim(adjustl(time_string))//'" />'
   write (14,'(A)') '    <Topology TopologyType="2DCoRectMesh" Dimensions="&nxnynz;" />'
   write (14,'(A)') ' '
-  write (14,'(A)') '    <Geometry GeometryType="Origin_DxDyDz">'
+  write (14,'(A)') '    <Geometry GeometryType="Origin_DxDy">'
   write (14,'(A)') '    <DataItem Dimensions="2" NumberType="Float" Format="XML">'
   write (14,'(A)') '    0 0'
   write (14,'(A)') '    </DataItem>'
@@ -251,19 +251,36 @@ subroutine WriteVector( basefilename, prefix, nx, ny, xl, yl , time )
   real (kind=pr), intent(in) :: xl,yl, time
   character (len=*), intent (in) :: basefilename, prefix
 
+  ! I DID NOT FIGURE OUT HOW I CAN DEFINE A 2D vector....
+  ! write (14,'(A)') '    '
+  ! write (14,'(A)') '    <!--Vector-->'
+  ! write (14,'(A)') '    <Attribute Name="'//prefix//'" AttributeType="Vector" Center="Node">'
+  ! write (14,'(A)') '    <DataItem ItemType="Function" Function="JOIN($0, $1)" Dimensions="&nxnynz; 2" NumberType="Float">'
+  ! write (14,'(A)') '        <DataItem Dimensions="&nxnynz;" NumberType="Float" Format="HDF">'
+  ! write (14,'(A)') '        '//prefix//'x_'//basefilename//'.h5:/'//prefix//'x'
+  ! write (14,'(A)') '        </DataItem>'
+  ! write (14,'(A)') '        '
+  ! write (14,'(A)') '        <DataItem Dimensions="&nxnynz;" NumberType="Float" Format="HDF">'
+  ! write (14,'(A)') '        '//prefix//'y_'//basefilename//'.h5:/'//prefix//'y'
+  ! write (14,'(A)') '        </DataItem>'
+  ! write (14,'(A)') '    </DataItem>'
+  ! write (14,'(A)') '    </Attribute>    '
+
   write (14,'(A)') '    '
-  write (14,'(A)') '    <!--Vector-->'
-  write (14,'(A)') '    <Attribute Name="'//prefix//'" AttributeType="Vector" Center="Node">'
-  write (14,'(A)') '    <DataItem ItemType="Function" Function="JOIN($0, $1)" Dimensions="&nxnynz; 2" NumberType="Float">'
-  write (14,'(A)') '        <DataItem Dimensions="&nxnynz;" NumberType="Float" Format="HDF">'
-  write (14,'(A)') '        '//prefix//'x_'//basefilename//'.h5:/'//prefix//'x'
-  write (14,'(A)') '        </DataItem>'
-  write (14,'(A)') '        '
-  write (14,'(A)') '        <DataItem Dimensions="&nxnynz;" NumberType="Float" Format="HDF">'
-  write (14,'(A)') '        '//prefix//'y_'//basefilename//'.h5:/'//prefix//'y'
-  write (14,'(A)') '        </DataItem>'
+  write (14,'(A)') '    <!--Scalar-->'
+  write (14,'(A)') '    <Attribute Name="'//prefix//'x" AttributeType="Scalar" Center="Node">'
+  write (14,'(A)') '    <DataItem Dimensions="&nxnynz;" NumberType="Float" Format="HDF">'
+  write (14,'(A)') '    '//prefix//'x_'//basefilename//'.h5:/'//prefix//'x'
   write (14,'(A)') '    </DataItem>'
-  write (14,'(A)') '    </Attribute>    '
+  write (14,'(A)') '    </Attribute>'
+
+  write (14,'(A)') '    '
+  write (14,'(A)') '    <!--Scalar-->'
+  write (14,'(A)') '    <Attribute Name="'//prefix//'y" AttributeType="Scalar" Center="Node">'
+  write (14,'(A)') '    <DataItem Dimensions="&nxnynz;" NumberType="Float" Format="HDF">'
+  write (14,'(A)') '    '//prefix//'y_'//basefilename//'.h5:/'//prefix//'y'
+  write (14,'(A)') '    </DataItem>'
+  write (14,'(A)') '    </Attribute>'
 
 end subroutine WriteVector
 
