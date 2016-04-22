@@ -4,7 +4,7 @@ program hdf2xml
   integer :: nx, ny, nz, nscal,nvec,ivec,ndt,idt,io_error=0,iscal
   real (kind=pr) :: time, xl, yl, zl
   character (len=5) :: basefilename
-  character (len=80) :: ofilename
+  character (len=80) :: ofilename, timeflag, name
   character prefixes_scalar(100)*80 ! maximal 100 prefixes à 80 chars length
   character prefixes_vector(100)*80 ! maximal 100 prefixes à 80 chars length
   character timesteps(10000)*80 ! maximal 10000 time steps à 80 chars length
@@ -22,8 +22,12 @@ program hdf2xml
     write(*,*) "STRIDE==YES so we create an xml file that load only every 2nd point!!"
   endif
 
+
+
   call get_command_argument(1, ofilename)
+  call get_command_argument(2, timeflag)
   write(*,*) "writing XMF to "//trim(adjustl(ofilename))
+  write(*,*) "time is read from "//trim(adjustl(timeflag))
 
   !---------------------------------------------------------------------
   ! read in LIST OF scalar prefixes.  note it is mandatory to follow
@@ -32,20 +36,20 @@ program hdf2xml
   ! ---------------------------------------------------------------------
   INQUIRE(FILE='prefixes_scalar.in', EXIST=scalars_exist)
   if(scalars_exist) then
-     io_error=0
-     open (15, file='prefixes_scalar.in', action='read', status='old' )
-     nscal = 1
-     write (*,'(A)',advance='no') "scalars = "
-     do while (io_error==0)
-        read (15,'(A)',iostat=io_error) prefixes_scalar(nscal)
-        if (io_error ==0) then ! pay a little attention here, else we go one too far
-           write (*,'(A,1x)',advance='no') trim(adjustl(prefixes_scalar(nscal)))
-           nscal = nscal+1
-        endif
-     enddo
-     nscal = nscal-1
-     write(*,*) " "
-     close (15)
+    io_error=0
+    open (15, file='prefixes_scalar.in', action='read', status='old' )
+    nscal = 1
+    write (*,'(A)',advance='no') "scalars = "
+    do while (io_error==0)
+      read (15,'(A)',iostat=io_error) prefixes_scalar(nscal)
+      if (io_error ==0) then ! pay a little attention here, else we go one too far
+        write (*,'(A,1x)',advance='no') trim(adjustl(prefixes_scalar(nscal)))
+        nscal = nscal+1
+      endif
+    enddo
+    nscal = nscal-1
+    write(*,*) " "
+    close (15)
   endif
   ! now we know how many scalars we have and what their names are
 
@@ -58,26 +62,26 @@ program hdf2xml
 
   INQUIRE(FILE='prefixes_vector.in', EXIST=vectors_exist)
   if(vectors_exist) then
-     io_error=0
-     open (15, file='prefixes_vector.in', action='read', status='old' )
-     nvec = 1
-     write (*,'(A)',advance='no') "vectors = "
-     do while (io_error==0)
-        read (15,'(A)',iostat=io_error) prefixes_vector(nvec)
-        if (io_error ==0) then ! pay a little attention here, else we go one too far
-           write (*,'(A,1x)',advance='no') trim(adjustl(prefixes_vector(nvec)))
-           nvec = nvec+1
-        endif
-     enddo
-     nvec = nvec-1
-     write(*,*) " "
-     close (15)
+    io_error=0
+    open (15, file='prefixes_vector.in', action='read', status='old' )
+    nvec = 1
+    write (*,'(A)',advance='no') "vectors = "
+    do while (io_error==0)
+      read (15,'(A)',iostat=io_error) prefixes_vector(nvec)
+      if (io_error ==0) then ! pay a little attention here, else we go one too far
+        write (*,'(A,1x)',advance='no') trim(adjustl(prefixes_vector(nvec)))
+        nvec = nvec+1
+      endif
+    enddo
+    nvec = nvec-1
+    write(*,*) " "
+    close (15)
   endif
   ! now we know how many vectors we have and what their names are
 
   if((vectors_exist .eqv. .false.) .and.  (scalars_exist .eqv. .false.)) then
-     write(*,*) "Neither scalars nor vectors found; unable to proceed."
-     stop
+    write(*,*) "Neither scalars nor vectors found; unable to proceed."
+    stop
   endif
 
   !--------------------------------------------------
@@ -90,24 +94,24 @@ program hdf2xml
 
   INQUIRE(FILE='timesteps.in', EXIST=file_exists)
   if(file_exists) then
-     io_error=0
-     open (15, file='timesteps.in', action='read', status='old' )
-     ndt = 1
-     write (*,'(A)',advance='no') "time steps= "
-     do while (io_error==0)
-        read (15,'(A)',iostat=io_error) timesteps(ndt)
-        if (io_error ==0) then ! pay a little attention here, else we
-                               ! go one too far
-           write (*,'(A,1x)',advance='no') trim(adjustl(timesteps(ndt)))
-           ndt = ndt+1
-        endif
-     enddo
-     ndt = ndt-1
-     write(*,*) " "
-     close (15)
+    io_error=0
+    open (15, file='timesteps.in', action='read', status='old' )
+    ndt = 1
+    write (*,'(A)',advance='no') "time steps= "
+    do while (io_error==0)
+      read (15,'(A)',iostat=io_error) timesteps(ndt)
+      if (io_error ==0) then ! pay a little attention here, else we
+        ! go one too far
+        write (*,'(A,1x)',advance='no') trim(adjustl(timesteps(ndt)))
+        ndt = ndt+1
+      endif
+    enddo
+    ndt = ndt-1
+    write(*,*) " "
+    close (15)
   else
-     write(*,*) "timesteps.in does not exist; unable to proceed."
-     stop
+    write(*,*) "timesteps.in does not exist; unable to proceed."
+    stop
   endif
   ! Now we know how many vectors we have and what their names are
 
@@ -121,13 +125,13 @@ program hdf2xml
 
   ! Read the resolution so that we can call BeginFile.
   if(scalars_exist) then
-     call Fetch_attributes (trim(adjustl(prefixes_scalar(1)))//"_"//trim(adjustl(timesteps(1)))//".h5",&
-          trim(adjustl(prefixes_scalar(1))), nx,ny,nz,xl,yl,zl,time)
+    name = trim(adjustl(prefixes_scalar(1)))//"_"//trim(adjustl(timesteps(1)))//".h5"
+    call Fetch_attributes (name,prefixes_scalar(1), nx,ny,nz,xl,yl,zl,time)
   endif
 
   if(vectors_exist) then
-     call Fetch_attributes(trim(adjustl(prefixes_vector(1)))//"x_"//trim(adjustl(timesteps(1)))//".h5",&
-          trim(adjustl(prefixes_vector(1)))//"x", nx,ny,nz,xl,yl,zl,time)
+    name = trim(adjustl(prefixes_vector(1)))//"x_"//trim(adjustl(timesteps(1)))//".h5"
+    call Fetch_attributes(name,trim(adjustl(prefixes_vector(1)))//"x", nx,ny,nz,xl,yl,zl,time)
   endif
 
   ! File header, requires resolution
@@ -135,40 +139,45 @@ program hdf2xml
 
   ! begin loops over time steps
   do idt = 1, ndt
-     ! Get the time from any of these files
-     if(scalars_exist) then
-        call Fetch_attributes (trim(adjustl(prefixes_scalar(1)))//"_"//trim(adjustl(timesteps(idt)))//".h5",&
-             trim(adjustl(prefixes_scalar(1))), nx,ny,nz,xl,yl,zl,time)
-     endif
+    ! Get the time from any of these files
+    if(scalars_exist) then
+      name = trim(adjustl(prefixes_scalar(1)))//"_"//trim(adjustl(timesteps(idt)))//".h5"
+      call Fetch_attributes (name,trim(adjustl(prefixes_scalar(1))), nx,ny,nz,xl,yl,zl,time)
+    endif
 
-     if(vectors_exist) then
-        call Fetch_attributes (trim(adjustl(prefixes_vector(1)))//"x_"//trim(adjustl(timesteps(idt)))//".h5",&
-             trim(adjustl(prefixes_vector(1)))//"x", nx,ny,nz,xl,yl,zl,time)
-     endif
+    if(vectors_exist) then
+      name = trim(adjustl(prefixes_vector(1)))//"x_"//trim(adjustl(timesteps(idt)))//".h5"
+      call Fetch_attributes (name,trim(adjustl(prefixes_vector(1)))//"x", nx,ny,nz,xl,yl,zl,time)
+    endif
 
-     ! Time step header
-     call BeginTimeStep(nx,ny,nz,xl,yl,zl,time, stride)
+    ! Time step header
+    if (timeflag=="--from-filename") then
+      ! read time step information from the filename
+      read(name(index(name,'_')+1:index(name,'.')-1),*) time
+    endif
 
-     ! Scalars
-     if(scalars_exist) then
-        do iscal = 1, nscal
-           call WriteScalar(trim(adjustl(timesteps(idt))),&
-                trim(adjustl(prefixes_scalar(iscal))),&
-                nx,ny,nz,xl,yl ,zl,time, stride)
-        end do
-     endif
+    call BeginTimeStep(nx,ny,nz,xl,yl,zl,time, stride)
 
-     ! Vectors
-     if(vectors_exist) then
-        do ivec = 1, nvec
-           call WriteVector(trim(adjustl(timesteps(idt))),&
-                trim(adjustl(prefixes_vector(ivec))),&
-                nx,ny,nz,xl,yl,zl,time, stride)
-        enddo
-     endif
+    ! Scalars
+    if(scalars_exist) then
+      do iscal = 1, nscal
+        call WriteScalar(trim(adjustl(timesteps(idt))),&
+        trim(adjustl(prefixes_scalar(iscal))),&
+        nx,ny,nz,xl,yl ,zl,time, stride)
+      end do
+    endif
 
-     ! Time step footer
-     call EndTimeStep()
+    ! Vectors
+    if(vectors_exist) then
+      do ivec = 1, nvec
+        call WriteVector(trim(adjustl(timesteps(idt))),&
+        trim(adjustl(prefixes_vector(ivec))),&
+        nx,ny,nz,xl,yl,zl,time, stride)
+      enddo
+    endif
+
+    ! Time step footer
+    call EndTimeStep()
   enddo
 
   ! file footer
@@ -279,7 +288,7 @@ subroutine WriteVector( basefilename, prefix, nx, ny, nz, xl, yl ,zl, time, stri
     write (14,'(A)') '    <!--Vector-->    '
     write (14,'(A)') '    <Attribute Name="'//prefix//'" AttributeType="Vector" Center="Node">'
     write (14,'(A)') '    <DataItem ItemType="Function" Function="JOIN($0, $1, $2)" &
-      &Dimensions="&subnxnynz; 3" NumberType="Float">    '
+    &Dimensions="&subnxnynz; 3" NumberType="Float">    '
     write (14,'(A)') '      <!--x-component-->    '
     write (14,'(A)') '      <DataItem ItemType="HyperSlab"    '
     write (14,'(A)') '        Dimensions="&subnxnynz;"    '
@@ -383,7 +392,7 @@ subroutine WriteScalar ( basefilename, prefix, nx, ny, nz, xl, yl ,zl, time, str
     write (14,'(A)') '        Dimensions="3 3" '
     write (14,'(A)') '        Format="XML">'
     write (14,'(A)') '        1 1 1' ! this is start
-	  write (14,'(A)') '        2 2 2' ! this is stride
+    write (14,'(A)') '        2 2 2' ! this is stride
     write (14,'(A)') '        &subnxnynz;' ! this is count
     write (14,'(A)') '      </DataItem>'
     write (14,'(A)') '      <DataItem'
@@ -461,9 +470,9 @@ subroutine Fetch_attributes( filename, dsetname,  nx, ny, nz, xl, yl ,zl, time )
   CALL h5dopen_f(file_id, dsetname, dset_id, error)
 
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !!!!!!!!!!!!!!!!!!!!!!!!!!
   ! open attribute (time)
-!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !!!!!!!!!!!!!!!!!!!!!!!!!!
   aname = "time"
   CALL h5aopen_f(dset_id, aname, attr_id, error)
 
@@ -476,9 +485,9 @@ subroutine Fetch_attributes( filename, dsetname,  nx, ny, nz, xl, yl ,zl, time )
   CALL h5aclose_f(attr_id, error) ! Close the attribute.
   CALL h5sclose_f(aspace_id, error) ! Terminate access to the data space.
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !!!!!!!!!!!!!!!!!!!!!!!!!!
   ! open attribute (domain_length)
-!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !!!!!!!!!!!!!!!!!!!!!!!!!!
   aname2 = "domain_size"
   CALL h5aopen_f(dset_id, aname2, attr_id, error)
 
@@ -494,9 +503,9 @@ subroutine Fetch_attributes( filename, dsetname,  nx, ny, nz, xl, yl ,zl, time )
   CALL h5aclose_f(attr_id, error) ! Close the attribute.
   CALL h5sclose_f(aspace_id, error) ! Terminate access to the data space.
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !!!!!!!!!!!!!!!!!!!!!!!!!!
   ! open attribute (sizes)
-!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !!!!!!!!!!!!!!!!!!!!!!!!!!
   aname = "nxyz"
   CALL h5aopen_f(dset_id, aname, attr_id, error)
 

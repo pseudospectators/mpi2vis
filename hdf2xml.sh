@@ -66,6 +66,7 @@ echo -e $Green "*  -p specify prefixes manually                    *" $Color_Off
 echo -e $Green "*  -t specify timesteps manually                   *" $Color_Off
 echo -e $Green "*  -o specify outfile                              *" $Color_Off
 echo -e $Green "*  -2 use two dimensional data                     *" $Color_Off
+echo -e $Green "*  -n read time from filename                      *" $Color_Off
 echo -e $Green "*--------------------------------------------------*" $Color_Off
 echo -e $Green "* Read full files u, but not mask:                 *" $Color_Off
 echo -e $Green "* ./hdf2xml.sh -i u -e mask                        *" $Color_Off
@@ -93,11 +94,13 @@ outfile="ALL.xmf"
 # call a different one sepcialized for 2D data
 converter="convert_hdf2xmf"
 mode="3d"
+time_from_filename="--from-dset"
 
 # parse options
-while getopts ':s2e:i:p:o:ht:' OPTION ; do
+while getopts ':s2e:i:p:o:hnt:' OPTION ; do
   case "$OPTION" in
     s)   echo -e ${Purple} "Use striding!" ${Color_Off} ; stride="y";;
+    n)   echo -e ${Purple} "Reading time from filenames!" ${Color_Off} ; time_from_filename="--from-filename";;
     i)   echo -e "Include the following files" ${Purple} ${OPTARG} ${Color_Off} ; include=${OPTARG};;
     e)   echo -e "Exclude the following files" ${Purple} ${OPTARG} ${Color_Off} ; exclude=${OPTARG};;
     p)   echo -e "Use only prefixes          " ${Purple} ${OPTARG} ${Color_Off} ; prefixes_in=${OPTARG};;
@@ -295,11 +298,11 @@ if [ "$all" == "i" ]; then
     rm -f timesteps.in
     echo $time >> ./timesteps.in
     # Create xmf file for one time step using the FORTRAN converter
-    $converter $time.xmf
+    $converter $time.xmf $time_from_filename
   done
 else
   # Create xmf file using the FORTRAN converter
-  $converter $outfile
+  $converter $outfile $time_from_filename
 fi
 
 
