@@ -115,7 +115,7 @@ echo "Processing..."
 #-------------------------------------------------------------------------------
 # Delete old files
 #-------------------------------------------------------------------------------
-rm -f timesteps.in prefixes_vector.in prefixes_scalar.in STRIDE.in
+rm -f timesteps.in prefixes_vector.in prefixes_scalar.in STRIDE.in test_ioperformance.h5
 
 #-------------------------------------------------------------------------------
 # Find prefixes
