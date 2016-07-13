@@ -242,7 +242,7 @@ else
   if [ $N3 != 0 ]; then
     # echo "Look for time with scalars."
     i=0
-    for F in `ls ${scalars[0]}*.${ending}`
+    for F in `ls ${scalars[0]}_*.${ending}`
     do
       time=${F%%.${ending}}
       time=${time##${scalars[0]}}
