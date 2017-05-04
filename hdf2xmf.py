@@ -38,7 +38,7 @@ def write_xmf_file(outfile,nx,ny,nz,lx,ly,lz, times, timestamps, prefixes, scala
         fid.write('<!ENTITY nxnynz "%i %i %i">\n' % (nz,ny,nx) )
         # write also half the resolutio to XMF file since we might use it
         # if striding is active!
-        fid.write('<!ENTITY subnxnynz "%i %i %i">\n' % (nz/2, ny/2, nx/2) )    
+        fid.write('<!ENTITY subnxnynz "%i %i %i">\n' % (nz/2, ny/2, nx/2) )
     else:
         fid.write('<!ENTITY nxnynz "%i %i">\n' % (nz,ny) )
         # write also half the resolutio to XMF file since we might use it
@@ -142,18 +142,6 @@ def write_xmf_file(outfile,nx,ny,nz,lx,ly,lz, times, timestamps, prefixes, scala
 
 
 def main():
-    #
-    # -s Striding. Use only every 2nd grid point      *
-    # *  -i prefixes to include                          *
-    # *  -e prefixes to exclude                          *
-    # *  -p specify prefixes manually                    *
-    # *  -t specify timesteps manually                   *
-    # *  -o specify outfile                              *
-    # *  -2 use two dimensional data                     *
-    # *  -n read time from filename                      *
-    ### *  -f force=do not ask user questions
-
-
     print( bcolors.OKGREEN + "**********************************************" + bcolors.ENDC )
     print( bcolors.OKGREEN + "**   hdf2xml.py                             **" + bcolors.ENDC )
     print( bcolors.OKGREEN + "**********************************************" + bcolors.ENDC )
@@ -165,6 +153,9 @@ def main():
     same instant. Setting -n will force hdf2xmf.py to read from filename, eg mask_00010.h5 
     will be at time 10, even if h5 attributes tell it is at t=0.1""", action="store_true")
     parser.add_argument("-2", "--two-dim", help="Assume 2D data", action="store_true")
+    parser.add_argument("-1", "--one-file-per-timestep", help="""Sometimes, it is useful to generate one XMF file per
+    time step (and not one global file), for example to compare two time steps. The -1 option generates these individual 
+    files. If -o outfile.xmf is set, then the files are named outfile_0000.xmf, outfile_0001.xmf etc.""", action="store_true")
     parser.add_argument("-o", "--outfile", help="XMF file to write to, default is ALL.xmf")
     parser.add_argument("-q", "--scalars", help="""Overwrite vector recongnition. Normally, a file ux_8384.h5 is interpreted as vector,
     so we also look for uy_8384.h5 and [in 3D mode] for uz_8384.h5. -q overwrites this behavior and individually processes all prefixes as scalars.
@@ -178,6 +169,7 @@ def main():
     group2.add_argument("-t", "--include-timestamps", help="Include just use these timestamps, if the files exist (space separated)", nargs='+')
     group2.add_argument("-x", "--exclude-timestamps", help="Exclude these timestamps (space separated)", nargs='+')
     args = parser.parse_args()
+
 
     # check if we deal with2d or 3d data
     print(args)
@@ -236,16 +228,24 @@ def main():
     print("We will include only the following timestamps: ", end='')
     print_list(args.include_timestamps)
     
+
+    # will we generate one or many XMF files?
+    if args.one_file_per_timestep:
+        print("XMF: One file per timestep will be written")
+    else:
+        print("XMF: One file with all timesteps will be generated")
+    
     #-------------------------------------------------------------------------------
     # get the list of all h5 files in the current directory.
     #-------------------------------------------------------------------------------
-    print("Looking for files")
+    print('-------------------------------------------------------------------')
+    print("Looking for files...", end='')
     # get the list of h5 files and sort them
     filelist = sorted( glob.glob("*.h5") )
     if not filelist:
         warn('No files found')
         return
-        
+            
     # initialize the list of prefixes
     prefixes = []
     vectors = []
@@ -255,6 +255,7 @@ def main():
     nx = None
     ny = None
     nz = None
+    nfiles = 0
     
     # loop over all h5 files, add their prefix and timestamp to a list
     for file in filelist:
@@ -297,6 +298,8 @@ def main():
             used = True
             
         if used:
+            # count used files
+            nfiles = nfiles + 1
             # store the dsetname in the list of prefixes. here, the entries are non-unique
             # we'll remove duplicates later.
             prefixes.append(dset_name)
@@ -341,6 +344,7 @@ def main():
             else:
                 scalars.append(dset_name)
 
+    
     # what is the resolution?
     print("Resolution is %i %i %i" % (nx,ny,nz))
     #-------------------------------------------------------------------------------
@@ -431,12 +435,29 @@ def main():
         # from the dset handle, read the attributes
         times.append( dset_id.attrs.get('time') )
     
+    # warn if we re about to write an empty file
     if not prefixes or not timestamps:
         warn('No prefixes or timestamps..an empty file is created')
-    
-    # write the acual xmf file with the information extracted above
-    write_xmf_file( args.outfile,nx,ny,nz,lx,ly,lz, times, timestamps, prefixes, scalars, vectors, dims )
 
+    print("We found " + bcolors.HEADER + "%i" % len(filelist) + bcolors.ENDC + " *.h5-files in directory")
+    print("The XMF file(s) refers to " + bcolors.HEADER + "%i" % (len(timestamps)*len(prefixes)) + bcolors.ENDC + " of these *.h5-files")    
+    
+    if args.one_file_per_timestep:
+        # extract base filename and extension
+        fname, fext = os.path.splitext( args.outfile )
+        # write one file per timestep
+        for i in range(0, len(timestamps)):
+            # construct filename
+            outfile = fname + "_" + timestamps[i] + ".xmf"
+            print("writing " + outfile + "....")
+            write_xmf_file( outfile,nx,ny,nz,lx,ly,lz, [times[i]], [timestamps[i]], prefixes, scalars, vectors, dims )
+    else:
+        # one file for the dataset
+        # write the acual xmf file with the information extracted above
+        print("writing " + args.outfile + "....")
+        write_xmf_file( args.outfile,nx,ny,nz,lx,ly,lz, times, timestamps, prefixes, scalars, vectors, dims )
+
+    print("Done. Enjoy!")
 
 # i hate python:
 # LIKE, THAT IS EASY!
