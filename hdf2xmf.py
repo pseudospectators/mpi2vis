@@ -350,21 +350,33 @@ def main():
 
     # what is the resolution?
     print("Resolution is %i %i %i" % (nx,ny,nz))
+
+    prefixes = sorted( list(set(prefixes)) )
+    vectors = sorted( list(set(vectors)) )
+    scalars = sorted( list(set(scalars)) )
+    #-------------------------------------------------------------------------------
+    # check if vectors are complete, if not, add them to scalars (ux_00.h5 uy_00.h5 uz_00.h5)
+    #-------------------------------------------------------------------------------
+    for pre in vectors:
+        if pre+'x' not in prefixes or pre+'y' not in prefixes or pre+'z' not in prefixes:
+            warn(pre+' is not a vector')
+            vectors.remove( pre )
+            if pre+'x' in prefixes:
+                scalars.append(pre+'x')
+            if pre+'y' in prefixes:
+                scalars.append(pre+'y')
+            if pre+'z' in prefixes:
+                scalars.append(pre+'z')
+
     #-------------------------------------------------------------------------------
     # retrieve unique prefixes
     #-------------------------------------------------------------------------------
-    prefixes = sorted( list(set(prefixes)) )
     print("We found the following prefixes: ", end='')
     print_list( prefixes )
-
-    vectors = sorted( list(set(vectors)) )
     print("We found the following vectors: ", end='')
     print_list( vectors )
-
-    scalars = sorted( list(set(scalars)) )
     print("We found the following scalars: ", end='')
     print_list( scalars )
-
 
     #-------------------------------------------------------------------------------
     # loop over all files and extract timestamps
