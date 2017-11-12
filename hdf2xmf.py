@@ -347,7 +347,7 @@ def main():
                 # and treat all fields as scalars
                 # vector / scalar handling: if it ends on {x,y,z} the dset_name indicates a vector
                 # otherwise, we deal with a scalar field.
-                if dset_name[len(dset_name)-1:len(dset_name)] in {'x','y','z'} and not args.scalars:
+                if dset_name[len(dset_name)-1:len(dset_name)] in ['x','y','z'] and not args.scalars:
                     vectors.append( dset_name[0:len(dset_name)-1] )
                 else:
                     scalars.append(dset_name)
