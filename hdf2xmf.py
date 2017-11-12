@@ -25,7 +25,7 @@ def warn( msg ):
     print( bcolors.FAIL + "WARNING! " + bcolors.ENDC + msg)
 
 
-def write_xmf_file(outfile,nx,ny,nz,lx,ly,lz, times, timestamps, prefixes, scalars, vectors, dims):
+def write_xmf_file(outfile,nx,ny,nz,lx,ly,lz, times, timestamps, prefixes, scalars, vectors, dims, directory):
     fid = open(outfile, 'w')
 
     #--------------------------------------------------------------------------
@@ -85,7 +85,7 @@ def write_xmf_file(outfile,nx,ny,nz,lx,ly,lz, times, timestamps, prefixes, scala
             fid.write('    <!--Scalar-->\n')
             fid.write('    <Attribute Name="%s" AttributeType="Scalar" Center="Node">\n' % p)
             fid.write('    <DataItem Dimensions="&nxnynz;" NumberType="Float" Format="HDF">\n')
-            fid.write('    %s_%s.h5:/%s\n' % (p, timestamps[k], p) )
+            fid.write('    %s%s_%s.h5:/%s\n' % (directory, p, timestamps[k], p) )
             fid.write('    </DataItem>\n')
             fid.write('    </Attribute>\n')
 
@@ -97,15 +97,15 @@ def write_xmf_file(outfile,nx,ny,nz,lx,ly,lz, times, timestamps, prefixes, scala
                 fid.write('    <Attribute Name="%s" AttributeType="Vector" Center="Node">\n' % p)
                 fid.write('    <DataItem ItemType="Function" Function="JOIN($0, $1, $2)" Dimensions="&nxnynz; 3" NumberType="Float">\n')
                 fid.write('        <DataItem Dimensions="&nxnynz;" NumberType="Float" Format="HDF">\n')
-                fid.write('        %s_%s.h5:/%s\n' % (p+'x', timestamps[k], p+'x') )
+                fid.write('        %s%s_%s.h5:/%s\n' % (directory, p+'x', timestamps[k], p+'x') )
                 fid.write('        </DataItem>\n')
                 fid.write('\n')
                 fid.write('        <DataItem Dimensions="&nxnynz;" NumberType="Float" Format="HDF">\n')
-                fid.write('        %s_%s.h5:/%s\n' % (p+'y', timestamps[k], p+'y') )
+                fid.write('        %s%s_%s.h5:/%s\n' % (directory, p+'y', timestamps[k], p+'y') )
                 fid.write('        </DataItem>\n')
                 fid.write('\n')
                 fid.write('        <DataItem Dimensions="&nxnynz;" NumberType="Float" Format="HDF">\n')
-                fid.write('        %s_%s.h5:/%s\n' % (p+'z', timestamps[k], p+'z') )
+                fid.write('        %s%s_%s.h5:/%s\n' % (directory, p+'z', timestamps[k], p+'z') )
                 fid.write('        </DataItem>\n')
                 fid.write('    </DataItem>\n')
                 fid.write('    </Attribute>\n')
@@ -115,11 +115,11 @@ def write_xmf_file(outfile,nx,ny,nz,lx,ly,lz, times, timestamps, prefixes, scala
                 fid.write('    <Attribute Name="%s" AttributeType="Vector" Center="Node">\n' % p)
                 fid.write('    <DataItem ItemType="Function" Function="JOIN($0, $1)" Dimensions="&nxnynz; 2" NumberType="Float">\n')
                 fid.write('        <DataItem Dimensions="&nxnynz;" NumberType="Float" Format="HDF">\n')
-                fid.write('        %s_%s.h5:/%s\n' % (p+'y', timestamps[k], p+'x') )
+                fid.write('        %s%s_%s.h5:/%s\n' % (directory, p+'y', timestamps[k], p+'x') )
                 fid.write('        </DataItem>\n')
                 fid.write('\n')
                 fid.write('        <DataItem Dimensions="&nxnynz;" NumberType="Float" Format="HDF">\n')
-                fid.write('        %s_%s.h5:/%s\n' % (p+'z', timestamps[k], p+'y') )
+                fid.write('        %s%s_%s.h5:/%s\n' % (directory, p+'z', timestamps[k], p+'y') )
                 fid.write('        </DataItem>\n')
                 fid.write('    </DataItem>\n')
                 fid.write('    </Attribute>\n')
@@ -157,6 +157,7 @@ def main():
     time step (and not one global file), for example to compare two time steps. The -1 option generates these individual
     files. If -o outfile.xmf is set, then the files are named outfile_0000.xmf, outfile_0001.xmf etc.""", action="store_true")
     parser.add_argument("-o", "--outfile", help="XMF file to write to, default is ALL.xmf")
+    parser.add_argument("-d", "--directory", help="directory of h5 files, if not ./")
     parser.add_argument("-q", "--scalars", help="""Overwrite vector recongnition. Normally, a file ux_8384.h5 is interpreted as vector,
     so we also look for uy_8384.h5 and [in 3D mode] for uz_8384.h5. -q overwrites this behavior and individually processes all prefixes as scalars.
     This option is useful if for some reason
@@ -170,6 +171,11 @@ def main():
     group2.add_argument("-x", "--exclude-timestamps", help="Exclude these timestamps (space separated)", nargs='+')
     args = parser.parse_args()
 
+    if args.directory is None:
+        directory = './'
+    else:
+        directory = args.directory
+    print("looking for files in dir: " + bcolors.HEADER + directory + bcolors.ENDC)
 
     # check if we deal with2d or 3d data
     print(args)
@@ -241,7 +247,7 @@ def main():
     print('-------------------------------------------------------------------')
     print("Looking for files...", end='')
     # get the list of h5 files and sort them
-    filelist = sorted( glob.glob("*.h5") )
+    filelist = sorted( glob.glob(directory + "*.h5") )
     if not filelist:
         warn('No files found')
         return
@@ -262,7 +268,6 @@ def main():
     for file in filelist:
         # read file
         f = h5py.File(file, 'r')
-
         # list all hdf5 datasets in the file - usually, we expect
         # to find only one.
         datasets = f.keys()
@@ -335,8 +340,8 @@ def main():
                 lz = box[2]
 
                 # warn if we might wrongly treat 2D data:
-                if nx == 1 and dims==3:
-                    warn('nz==1, so you might consider setting the -2 option')
+#                if nx == 1 and dims==3:
+#                    warn('nz==1, so you might consider setting the -2 option')
 
                 # the option --scalars forces the code to ignore the trailing x,y,z icons
                 # and treat all fields as scalars
@@ -386,7 +391,7 @@ def main():
     for file in filelist_used:
         # extract everything between "_" and "." so mask_00000.h5 gives 00000
         # note escape character "\"
-        m = re.search('\_(.+?)\.',file)
+        m = re.search('\_(.+?)\.', os.path.basename(file) )
         if m:
             found = m.group(1)
             # variant I: given list of timestamps to exlude
@@ -426,7 +431,7 @@ def main():
     for t in timestamps:
         for p in prefixes:
             # construct filename
-            fname = p+"_"+t+".h5"
+            fname = directory + p + "_" + t + ".h5"
             if not os.path.isfile(fname):
                 warn("File "+fname+ " NOT found!")
 
@@ -439,7 +444,7 @@ def main():
     times=[]
     for t in timestamps:
         # read file
-        f = h5py.File(p + "_" + t + ".h5", 'r')
+        f = h5py.File(directory + p + "_" + t + ".h5", 'r')
         # list all hdf5 datasets in the file - usually, we expect
         # to find only one.
         datasets = f.keys()
@@ -465,12 +470,12 @@ def main():
             # construct filename
             outfile = fname + "_" + timestamps[i] + ".xmf"
             print("writing " + outfile + "....")
-            write_xmf_file( outfile,nx,ny,nz,lx,ly,lz, [times[i]], [timestamps[i]], prefixes, scalars, vectors, dims )
+            write_xmf_file( outfile,nx,ny,nz,lx,ly,lz, [times[i]], [timestamps[i]], prefixes, scalars, vectors, dims, directory )
     else:
         # one file for the dataset
         # write the acual xmf file with the information extracted above
         print("writing " + args.outfile + "....")
-        write_xmf_file( args.outfile,nx,ny,nz,lx,ly,lz, times, timestamps, prefixes, scalars, vectors, dims )
+        write_xmf_file( args.outfile,nx,ny,nz,lx,ly,lz, times, timestamps, prefixes, scalars, vectors, dims, directory )
 
     print("Done. Enjoy!")
 
