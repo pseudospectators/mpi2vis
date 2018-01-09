@@ -279,7 +279,7 @@ def main():
         f = h5py.File(file, 'r')
         # list all hdf5 datasets in the file - usually, we expect
         # to find only one.
-        datasets = f.keys()
+        datasets = list(f.keys())
 
         # if we find more than one dset we warn that this is unusual
         if (len(datasets) != 1):
@@ -456,7 +456,7 @@ def main():
         f = h5py.File(directory + p + "_" + t + ".h5", 'r')
         # list all hdf5 datasets in the file - usually, we expect
         # to find only one.
-        datasets = f.keys()
+        datasets = list(f.keys())
         # as there should be only one, this should be our dataset:
         dset_name = datasets[0]
         # get the dataset handle
