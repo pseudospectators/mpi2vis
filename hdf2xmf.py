@@ -1,4 +1,5 @@
-#!/bin/python
+#!/softs/Python/3.4.2/bin/python3
+
 # I really hate python already:
 from __future__ import print_function
 import glob, os
@@ -279,8 +280,8 @@ def main():
         f = h5py.File(file, 'r')
         # list all hdf5 datasets in the file - usually, we expect
         # to find only one.
-        datasets = f.keys()
-
+        datasets = list(f.keys())
+        print(datasets)
         # if we find more than one dset we warn that this is unusual
         if (len(datasets) != 1):
             warn("we found more than one dset in the file (and thus skip it)..."+file)
