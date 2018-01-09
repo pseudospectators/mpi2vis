@@ -15,6 +15,13 @@ class bcolors:
         BOLD = '\033[1m'
         UNDERLINE = '\033[4m'
 
+def get_dset_name( fname ):
+    from os.path import basename
+    dset_name = basename(fname)
+    dset_name = dset_name[0:dset_name.find('_')]
+
+    return dset_name
+
 def print_list( l ):
     for p in l:
         print(bcolors.HEADER + p + " " + bcolors.ENDC, end='')
@@ -175,6 +182,8 @@ def main():
         directory = './'
     else:
         directory = args.directory
+    if directory[-1] != "/":
+        directory = directory + '/'
     print("looking for files in dir: " + bcolors.HEADER + directory + bcolors.ENDC)
 
     # check if we deal with2d or 3d data
@@ -364,7 +373,7 @@ def main():
     #-------------------------------------------------------------------------------
     for pre in vectors:
         if pre+'x' not in prefixes or pre+'y' not in prefixes or pre+'z' not in prefixes:
-            warn(pre+' is not a vector')
+            warn( pre+' is not a vector' )
             vectors.remove( pre )
             if pre+'x' in prefixes:
                 scalars.append(pre+'x')
