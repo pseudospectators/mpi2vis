@@ -1,4 +1,4 @@
-#!/bin/python
+#!/usr/bin/env python3
 # I really hate python already:
 from __future__ import print_function
 import glob, os
@@ -32,7 +32,7 @@ def warn( msg ):
     print( bcolors.FAIL + "WARNING! " + bcolors.ENDC + msg)
 
 
-def write_xmf_file(outfile,nx,ny,nz,lx,ly,lz, times, timestamps, prefixes, scalars, vectors, dims, directory):
+def write_xmf_file(outfile,nx,ny,nz,lx,ly,lz, times, timestamps, prefixes, scalars, vectors, dims, directory, origin):
     fid = open(outfile, 'w')
 
     #--------------------------------------------------------------------------
@@ -72,9 +72,9 @@ def write_xmf_file(outfile,nx,ny,nz,lx,ly,lz, times, timestamps, prefixes, scala
             fid.write('    <Geometry GeometryType="Origin_DxDy">\n')
         fid.write('    <DataItem Dimensions="%i" NumberType="Float" Format="XML">\n' % dims)
         if dims == 3:
-            fid.write('    0 0 0\n')
+            fid.write('    %e %e %e \n' % (origin[2],origin[1],origin[0]) )
         else:
-            fid.write('    0 0\n')
+            fid.write('    %e %e \n' % (origin[2], origin[1]) )
         fid.write('    </DataItem>\n')
         fid.write('    <DataItem Dimensions="%i" NumberType="Float" Format="XML">\n' % dims)
         # NB: indices output in z,y,x order. (C vs Fortran ordering?)
@@ -266,7 +266,7 @@ def main():
     vectors = []
     scalars = []
     filelist_used = []
-    # initliazie list of times
+    # initialize list of times
     times = []
     nx = None
     ny = None
@@ -329,6 +329,10 @@ def main():
                 times.append(time)
                 res = dset_id.attrs.get('nxyz')
                 box = dset_id.attrs.get('domain_size')
+                # new: we allow for non.zero origin, if the file contains that information.
+                origin = dset_id.attrs.get('origin')
+                if origin is None:
+                    origin = [0.0, 0.0, 0.0]
 
                 # copy current values (these should not change between files. TODO: warn if they do)
                 if nx is not None:
@@ -364,6 +368,7 @@ def main():
 
     # what is the resolution?
     print("Resolution is %i %i %i" % (nx,ny,nz))
+    print("Origin of grid is %i %i %i" % (origin[0],origin[1],origin[2]))
 
     prefixes = sorted( list(set(prefixes)) )
     vectors = sorted( list(set(vectors)) )
@@ -479,12 +484,12 @@ def main():
             # construct filename
             outfile = fname + "_" + timestamps[i] + ".xmf"
             print("writing " + outfile + "....")
-            write_xmf_file( outfile,nx,ny,nz,lx,ly,lz, [times[i]], [timestamps[i]], prefixes, scalars, vectors, dims, directory )
+            write_xmf_file( outfile,nx,ny,nz,lx,ly,lz, [times[i]], [timestamps[i]], prefixes, scalars, vectors, dims, directory, origin )
     else:
         # one file for the dataset
         # write the acual xmf file with the information extracted above
         print("writing " + args.outfile + "....")
-        write_xmf_file( args.outfile,nx,ny,nz,lx,ly,lz, times, timestamps, prefixes, scalars, vectors, dims, directory )
+        write_xmf_file( args.outfile,nx,ny,nz,lx,ly,lz, times, timestamps, prefixes, scalars, vectors, dims, directory, origin )
 
     print("Done. Enjoy!")
 
