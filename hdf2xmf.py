@@ -164,6 +164,8 @@ def main():
     time step (and not one global file), for example to compare two time steps. The -1 option generates these individual
     files. If -o outfile.xmf is set, then the files are named outfile_0000.xmf, outfile_0001.xmf etc.""", action="store_true")
     parser.add_argument("-o", "--outfile", help="XMF file to write to, default is ALL.xmf")
+    parser.add_argument("-0", "--ignore-origin", help="force origin to 0,0,0", action="store_true")
+    parser.add_argument("-u", "--unit-spacing", help="use unit spacing dx=dy=dz=1 regardless of what is specified in h5 files", action="store_true")
     parser.add_argument("-d", "--directory", help="directory of h5 files, if not ./")
     parser.add_argument("-q", "--scalars", help="""Overwrite vector recongnition. Normally, a file ux_8384.h5 is interpreted as vector,
     so we also look for uy_8384.h5 and [in 3D mode] for uz_8384.h5. -q overwrites this behavior and individually processes all prefixes as scalars.
@@ -208,6 +210,13 @@ def main():
         print("Time will be read from: "+bcolors.HEADER + "filename" + bcolors.ENDC)
     else:
         print("Time will be read from: "+bcolors.HEADER + "dataset" + bcolors.ENDC)
+
+    # force unit spacing, dx=dy=dz=1 (useful for micro-ct data, occasionally)
+    if args.unit_spacing:
+        print("We will force unit spacing! dx=dy=dz=1 regardless of what is specified in h5 files")
+
+    if args.ignore_origin:
+        print("We will force origin = 0.0, 0.0, 0.0 regardless of what is specified in h5 files")
 
     # will vector recognition be turned off? This option is useful if for some reason
     # you have a file that ends with x is not a vector or if you downloaded just one
@@ -368,7 +377,17 @@ def main():
 
     # what is the resolution?
     print("Resolution is %i %i %i" % (nx,ny,nz))
+
+    # origin of grid:
+    if args.ignore_origin:
+        origin = [0.0, 0.0, 0.0]
     print("Origin of grid is %i %i %i" % (origin[0],origin[1],origin[2]))
+
+    # unit spacing, if forced
+    if args.unit_spacing:
+        lx = float(nx)
+        ly = float(ny)
+        lz = float(nz)
 
     prefixes = sorted( list(set(prefixes)) )
     vectors = sorted( list(set(vectors)) )
@@ -484,12 +503,14 @@ def main():
             # construct filename
             outfile = fname + "_" + timestamps[i] + ".xmf"
             print("writing " + outfile + "....")
-            write_xmf_file( outfile,nx,ny,nz,lx,ly,lz, [times[i]], [timestamps[i]], prefixes, scalars, vectors, dims, directory, origin )
+            write_xmf_file( outfile,nx,ny,nz,lx,ly,lz, [times[i]], [timestamps[i]], prefixes, scalars,
+                           vectors, dims, directory, origin)
     else:
         # one file for the dataset
         # write the acual xmf file with the information extracted above
         print("writing " + args.outfile + "....")
-        write_xmf_file( args.outfile,nx,ny,nz,lx,ly,lz, times, timestamps, prefixes, scalars, vectors, dims, directory, origin )
+        write_xmf_file( args.outfile,nx,ny,nz,lx,ly,lz, times, timestamps, prefixes, scalars,
+                       vectors, dims, directory, origin)
 
     print("Done. Enjoy!")
 
