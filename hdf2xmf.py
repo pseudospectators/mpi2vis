@@ -15,12 +15,34 @@ class bcolors:
         BOLD = '\033[1m'
         UNDERLINE = '\033[4m'
 
+def strictly_increasing(L):
+    return all(x<y for x, y in zip(L, L[1:]))
+
+
 def get_dset_name( fname ):
     from os.path import basename
     dset_name = basename(fname)
     dset_name = dset_name[0:dset_name.find('_')]
 
     return dset_name
+
+
+def get_timestamp( fname ):
+    import re
+    from os.path import basename
+
+    fname = basename(fname)
+    # extract everything between "_" and "." so mask_00000.h5 gives 00000
+    # note escape character "\"
+    m = re.search('\_(.+?)\.', fname )
+
+    if m:
+        timestamp = m.group(1)
+    else:
+        print("An error occured: we couldn't extract the timestamp")
+
+    return timestamp
+
 
 def print_list( l ):
     for p in l:
@@ -294,12 +316,13 @@ def main():
         if (len(datasets) != 1):
             warn("we found more than one dset in the file (and thus skip it)..."+file)
         else:
+            #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            # judging from the dataset, do we use this file?
+            #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
             # as there should be only one, this should be our dataset:
             dset_name = datasets[0]
-
             # a priori, we'll not use this this
             used = False
-
             # Variant I: given list of exclude prefixes:
             if args.exclude_prefixes:
                 # the --exclude-prefixe option helps us ignore some prefixes, for example if they
@@ -316,10 +339,36 @@ def main():
                     # we used this file:
                     used = True
 
-            # variant II: neither of both:
+            # variant III: neither of both:
             if not args.exclude_prefixes and not args.include_prefixes:
                 # we used this file:
                 used = True
+
+            #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            # judging from the timestamp, do we use this file?
+            #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            if used:
+                # now the condition for the dataset was met, we again suppose not
+                # to use the file.
+                used = False
+                # get filename timestamp
+                timestamp = get_timestamp( file )
+                # variant I: given list of timestamps to exlude
+                if args.exclude_timestamps:
+                    if timestamp not in args.exclude_timestamps:
+                        # we used this file:
+                        used = True
+
+                # variant II: given the list of timestamps
+                if args.include_timestamps:
+                    if timestamp in args.include_timestamps:
+                        # we used this file:
+                        used = True
+
+                # variant III neither of both
+                if not args.exclude_timestamps and not args.include_timestamps:
+                    # we used this file:
+                    used = True
 
             if used:
                 # add to list of actually used files
@@ -338,6 +387,7 @@ def main():
                 times.append(time)
                 res = dset_id.attrs.get('nxyz')
                 box = dset_id.attrs.get('domain_size')
+
                 # new: we allow for non.zero origin, if the file contains that information.
                 origin = dset_id.attrs.get('origin')
                 if origin is None:
@@ -354,16 +404,19 @@ def main():
                     if nz != res[2]:
                         warn(' The nz-resolution seems to have changed')
 
-                nx = res[0]
-                ny = res[1]
-                nz = res[2]
-                lx = box[0]
-                ly = box[1]
-                lz = box[2]
+                if len(res)==3:
+                    nx, ny, nz = res
+                    lx, ly, lz = box
+                else:
+                    nx, ny = res
+                    lx, ly = box
 
-                # warn if we might wrongly treat 2D data:
-#                if nx == 1 and dims==3:
-#                    warn('nz==1, so you might consider setting the -2 option')
+                # warn if we might wrongly treat 3D data:
+                if dims==2 and len(res)!=2:
+                    warn('You told me this is 2D data but it appears to be 3D data.')
+                if dims==3 and len(res)!=3:
+                    warn('You told me this is 3D data but it appears to be 2D data.')
+
 
                 # the option --scalars forces the code to ignore the trailing x,y,z icons
                 # and treat all fields as scalars
@@ -381,7 +434,7 @@ def main():
     # origin of grid:
     if args.ignore_origin:
         origin = [0.0, 0.0, 0.0]
-    print("Origin of grid is %i %i %i" % (origin[0],origin[1],origin[2]))
+    print("Origin of grid is %e %e %e" % (origin[0],origin[1],origin[2]))
 
     # unit spacing, if forced
     if args.unit_spacing:
@@ -417,34 +470,11 @@ def main():
     print_list( scalars )
 
     #-------------------------------------------------------------------------------
-    # loop over all files and extract timestamps
+    # loop over all used files and extract timestamps
     #-------------------------------------------------------------------------------
-    import re
     timestamps=[]
     for file in filelist_used:
-        # extract everything between "_" and "." so mask_00000.h5 gives 00000
-        # note escape character "\"
-        m = re.search('\_(.+?)\.', os.path.basename(file) )
-        if m:
-            found = m.group(1)
-            # variant I: given list of timestamps to exlude
-            if args.exclude_timestamps:
-                if found not in args.exclude_timestamps:
-                    # append the extracted time stampt to the list of timestamps
-                    timestamps.append(found)
-
-            # variant II: given the list of timestamps
-            if args.include_timestamps:
-                if found in args.include_timestamps:
-                    # append the extracted time stampt to the list of timestamps
-                    timestamps.append(found)
-
-            # variant II neither of both
-            if not args.exclude_timestamps and not args.include_timestamps:
-                if found:
-                    timestamps.append(found)
-        else:
-            print("An error occured: we couldn't extract the timestamp")
+        timestamps.append( get_timestamp( file ) )
 
     # retrieve unique timestamps
     timestamps = sorted( list(set(timestamps)) )
@@ -460,7 +490,7 @@ def main():
             # convert the string to a float, simply.
             times[i] = float( timestamps[i] )
 
-    # as a last step before XMF generation, check if all files from the matrix exist
+    # check if all files from the matrix exist
     for t in timestamps:
         for p in prefixes:
             # construct filename
@@ -469,7 +499,7 @@ def main():
                 warn("File "+fname+ " NOT found!")
 
     # we have now the timestamps as an ordered list, and the times array as an ordered list
-    # however, if we exlcude / include some files, the lists do not match, and we select files with the
+    # however, if we exclude / include some files, the lists do not match, and we select files with the
     # wrong timestamp in the xmf file.
     # So now, we just take one prefix, loop over all used timestamps, and read the time from
     # that file. then we're sure both match.
@@ -487,6 +517,9 @@ def main():
         dset_id = f.get(dset_name)
         # from the dset handle, read the attributes
         times.append( dset_id.attrs.get('time') )
+
+    if not strictly_increasing(times):
+        warn('List of times t is NOT monotonically increasing, this might cause PARAVIEW reader errors. Consider using the -n option')
 
     # warn if we re about to write an empty file
     if not prefixes or not timestamps:
