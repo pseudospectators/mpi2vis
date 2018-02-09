@@ -383,8 +383,6 @@ def main():
                 dset_id = f.get(dset_name)
 
                 # from the dset handle, read the attributes
-                time = dset_id.attrs.get('time')
-                times.append(time)
                 res = dset_id.attrs.get('nxyz')
                 box = dset_id.attrs.get('domain_size')
 
@@ -481,16 +479,9 @@ def main():
     print("We found the following timestamps: ", end='')
     print_list( timestamps )
 
-
-    # if desired, we read the actual data time from the filename and not from
-    # the file. it sounds silly - but it proved to be very useful, if you have two files
-    # at the same time in dataset but different file name. happens not often, but happens.
-    if args.time_by_fname:
-        for i in range(0, len(timestamps) ):
-            # convert the string to a float, simply.
-            times[i] = float( timestamps[i] )
-
+    #-------------------------------------------------------------------------------
     # check if all files from the matrix exist
+    #-------------------------------------------------------------------------------
     for t in timestamps:
         for p in prefixes:
             # construct filename
@@ -501,25 +492,48 @@ def main():
     # we have now the timestamps as an ordered list, and the times array as an ordered list
     # however, if we exclude / include some files, the lists do not match, and we select files with the
     # wrong timestamp in the xmf file.
-    # So now, we just take one prefix, loop over all used timestamps, and read the time from
-    # that file. then we're sure both match.
-    p = prefixes[0]
     times=[]
-    for t in timestamps:
-        # read file
-        f = h5py.File(directory + p + "_" + t + ".h5", 'r')
-        # list all hdf5 datasets in the file - usually, we expect
-        # to find only one.
-        datasets = list(f.keys())
-        # as there should be only one, this should be our dataset:
-        dset_name = datasets[0]
-        # get the dataset handle
-        dset_id = f.get(dset_name)
-        # from the dset handle, read the attributes
-        times.append( dset_id.attrs.get('time') )
+    for timestamp in timestamps:
+        time = None
 
+        # if desired, we read the actual data time from the filename and not from
+        # the file. it sounds silly - but it proved to be very useful, if you have two files
+        # at the same time in dataset but different file name. happens not often, but happens.
+        if args.time_by_fname:
+            # convert the string to a float, simply.
+            time = float( timestamp )
+        else:
+            for p in prefixes:
+                fname = directory + p + "_" + timestamp + ".h5"
+                # read time from file
+                f = h5py.File(fname, 'r')
+                # list all hdf5 datasets in the file - usually, we expect
+                # to find only one.
+                datasets = list(f.keys())
+                # as there should be only one, this should be our dataset:
+                dset_name = datasets[0]
+                # get the dataset handle
+                dset_id = f.get(dset_name)
+                # from the dset handle, read the attributes
+                tmp = dset_id.attrs.get('time')
+                if time is None:
+                    time = tmp
+                else:
+                    if tmp is not time:
+                        warn('It appears not all prefixes (with the same timestamp) are at the same time. consider using -n option. %s is at %f which is not %f' % (fname,tmp,time))
+
+        # add time to the list of times.
+        times.append( time )
+
+
+    # check if the times are strictly increasing
+    # PARAVIEW crashes with no clear error message if they dont
     if not strictly_increasing(times):
+        print('-----------debug output----------')
+        for t, tt in zip(timestamps, times):
+            print("Timestamp %s time=%f" % (t,tt) )
         warn('List of times t is NOT monotonically increasing, this might cause PARAVIEW reader errors. Consider using the -n option')
+
 
     # warn if we re about to write an empty file
     if not prefixes or not timestamps:
