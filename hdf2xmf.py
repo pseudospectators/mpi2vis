@@ -69,10 +69,10 @@ def write_xmf_file(outfile,nx,ny,nz,lx,ly,lz, times, timestamps, prefixes, scala
         # if striding is active!
         fid.write('<!ENTITY subnxnynz "%i %i %i">\n' % (nz/2, ny/2, nx/2) )
     else:
-        fid.write('<!ENTITY nxnynz "%i %i">\n' % (nz,ny) )
+        fid.write('<!ENTITY nxnynz "%i %i">\n' % (ny,nx) )
         # write also half the resolutio to XMF file since we might use it
         # if striding is active!
-        fid.write('<!ENTITY subnxnynz "%i %i">\n' % (nz/2, ny/2) )
+        fid.write('<!ENTITY subnxnynz "%i %i">\n' % (ny/2, nx/2) )
 
     fid.write(']>\n')
     fid.write('<Xdmf Version="2.0">\n')
@@ -96,14 +96,14 @@ def write_xmf_file(outfile,nx,ny,nz,lx,ly,lz, times, timestamps, prefixes, scala
         if dims == 3:
             fid.write('    %e %e %e \n' % (origin[2],origin[1],origin[0]) )
         else:
-            fid.write('    %e %e \n' % (origin[2], origin[1]) )
+            fid.write('    %e %e \n' % (origin[1], origin[0]) )
         fid.write('    </DataItem>\n')
         fid.write('    <DataItem Dimensions="%i" NumberType="Float" Format="XML">\n' % dims)
         # NB: indices output in z,y,x order. (C vs Fortran ordering?)
         if dims == 3:
             fid.write('    %e %e %e\n' % (lz/nz, ly/ny, lx/nx) )
         else:
-            fid.write('    %e %e\n' % (lz/nz, ly/ny) )
+            fid.write('    %e %e\n' % (ly/ny, lx/nx) )
         fid.write('    </DataItem>\n')
         fid.write('    </Geometry>\n')
 
@@ -144,11 +144,11 @@ def write_xmf_file(outfile,nx,ny,nz,lx,ly,lz, times, timestamps, prefixes, scala
                 fid.write('    <Attribute Name="%s" AttributeType="Vector" Center="Node">\n' % p)
                 fid.write('    <DataItem ItemType="Function" Function="JOIN($0, $1)" Dimensions="&nxnynz; 2" NumberType="Float">\n')
                 fid.write('        <DataItem Dimensions="&nxnynz;" NumberType="Float" Format="HDF">\n')
-                fid.write('        %s%s_%s.h5:/%s\n' % (directory, p+'y', timestamps[k], p+'x') )
+                fid.write('        %s%s_%s.h5:/%s\n' % (directory, p+'x', timestamps[k], p+'x') )
                 fid.write('        </DataItem>\n')
                 fid.write('\n')
                 fid.write('        <DataItem Dimensions="&nxnynz;" NumberType="Float" Format="HDF">\n')
-                fid.write('        %s%s_%s.h5:/%s\n' % (directory, p+'z', timestamps[k], p+'y') )
+                fid.write('        %s%s_%s.h5:/%s\n' % (directory, p+'y', timestamps[k], p+'y') )
                 fid.write('        </DataItem>\n')
                 fid.write('    </DataItem>\n')
                 fid.write('    </Attribute>\n')
@@ -398,7 +398,7 @@ def main():
                 if ny is not None:
                     if ny != res[1]:
                         warn(' The ny-resolution seems to have changed')
-                if nz is not None:
+                if nz is not None and dims==3:
                     if nz != res[2]:
                         warn(' The nz-resolution seems to have changed')
 
@@ -408,6 +408,8 @@ def main():
                 else:
                     nx, ny = res
                     lx, ly = box
+                    nz = 0
+                    lz = 0.0
 
                 # warn if we might wrongly treat 3D data:
                 if dims==2 and len(res)!=2:
@@ -427,7 +429,10 @@ def main():
 
 
     # what is the resolution?
-    print("Resolution is %i %i %i" % (nx,ny,nz))
+    if dims==3:
+        print("Resolution is %i %i %i" % (nx,ny,nz))
+    else:
+        print("Resolution is %i %i" % (nx,ny))
 
     # origin of grid:
     if args.ignore_origin:
@@ -446,16 +451,27 @@ def main():
     #-------------------------------------------------------------------------------
     # check if vectors are complete, if not, add them to scalars (ux_00.h5 uy_00.h5 uz_00.h5)
     #-------------------------------------------------------------------------------
-    for pre in vectors:
-        if pre+'x' not in prefixes or pre+'y' not in prefixes or pre+'z' not in prefixes:
-            warn( pre+' is not a vector' )
-            vectors.remove( pre )
-            if pre+'x' in prefixes:
-                scalars.append(pre+'x')
-            if pre+'y' in prefixes:
-                scalars.append(pre+'y')
-            if pre+'z' in prefixes:
-                scalars.append(pre+'z')
+    if dims==3:
+        for pre in vectors:
+            if pre+'x' not in prefixes or pre+'y' not in prefixes or pre+'z' not in prefixes:
+                warn( pre+' is not a vector' )
+                vectors.remove( pre )
+                if pre+'x' in prefixes:
+                    scalars.append(pre+'x')
+                if pre+'y' in prefixes:
+                    scalars.append(pre+'y')
+                if pre+'z' in prefixes:
+                    scalars.append(pre+'z')
+    else:
+        for pre in vectors:
+            if pre+'x' not in prefixes or pre+'y' not in prefixes:
+                warn( pre+' is not a vector' )
+                vectors.remove( pre )
+                if pre+'x' in prefixes:
+                    scalars.append(pre+'x')
+                if pre+'y' in prefixes:
+                    scalars.append(pre+'y')
+
 
     #-------------------------------------------------------------------------------
     # retrieve unique prefixes
@@ -519,7 +535,7 @@ def main():
                 if time is None:
                     time = tmp
                 else:
-                    if tmp is not time:
+                    if abs(tmp-time) > 1.0e-5:
                         warn('It appears not all prefixes (with the same timestamp) are at the same time. consider using -n option. %s is at %f which is not %f' % (fname,tmp,time))
 
         # add time to the list of times.
