@@ -50,11 +50,246 @@ def print_list( l ):
     # print just one newline
     print(' ')
 
+
 def warn( msg ):
     print( bcolors.FAIL + "WARNING! " + bcolors.ENDC + msg)
 
 
-def write_xmf_file(outfile,nx,ny,nz,lx,ly,lz, times, timestamps, prefixes, scalars, vectors, dims, directory, origin):
+def uniquelist( l ):
+    # if the list has only one unique value, return it, if not, error
+    if len(l) == 0:
+        return None
+    l = sorted(list(set(l)))
+    if len(l) == 1:
+        return(l[0])
+    elif len(l) == 0:
+        warn('uniquelist: List is completely empty!')
+        return None
+    else:
+        warn('uniquelist: List ist not unique...something went wrong.')
+        print('these are the values we found in the list:')
+        print(l)
+        return l[0]
+
+
+def write_xmf_file_wabbit(args, outfile, times, timestamps, prefixes, scalars, vectors, directory):
+    print('-------------------------')
+    print('- WABBIT module         -')
+    print('-------------------------')
+
+    fid = open(outfile, 'w')
+    # use any file to get blocksize and dimensionality
+    file = directory + prefixes[0] + '_' + timestamps[0] + '.h5'
+    # open h5 file
+    f = h5py.File(file)
+    # get the dataset handle
+    dset_id = f.get('blocks')
+
+    res = dset_id.shape
+
+    if (len(res) == 3):
+        # ------------------------------------------------------
+        # 2d data
+        # ------------------------------------------------------
+        Nb, Bs = res[0:1+1]
+
+        # header
+        fid.write('<?xml version="1.0" ?>\n')
+        fid.write('<!DOCTYPE Xdmf SYSTEM "Xdmf.dtd" []>\n')
+        fid.write('<Xdmf xmlns:xi="http://www.w3.org/2003/XInclude" Version="2.2">\n')
+        fid.write('  <Domain>\n')
+
+        fid.write('    <Grid Name="%s" GridType="Collection" CollectionType="Temporal">\n' % ('wabbit2d') )
+        fid.write('\n')
+
+        # list of times (associated to timestamps)
+        fid.write('      <Time TimeType="List">\n')
+        fid.write('        <DataItem Format="XML" NumberType="Float" Dimensions="%i">\n' % (len(timestamps)) )
+        fid.write('          ')
+        for time in times:
+            fid.write(' %e ' % (time) )
+        fid.write('</DataItem>\n')
+        fid.write('        </Time>\n')
+        fid.write('\n')
+
+        # loop over time steps
+        for i in range(len(timestamps)):
+            fid.write('\n')
+            fid.write('        <Grid Name="timestep %i" GridType="Collection" CollectionType="Spatial">\n' % (i))
+
+            #use any of our files at the same timestamp to determine number of blocks
+            file = directory + prefixes[0] + '_' + timestamps[i] + '.h5'
+            # open h5 file
+            f = h5py.File(file)
+            dset_id = f.get('blocks')
+            Nb = dset_id.shape[0]
+
+            # all blocks for this timestep
+            for b  in range(Nb):
+                fid.write('          <!-- ***************************************************************** -->\n')
+                fid.write('          <Grid Name="block%i" GridType="Uniform">\n' % (b))
+                fid.write('            <Topology TopologyType="2DCoRectMesh" NumberOfElements="%i %i"/>\n' % (Bs,Bs) )
+                fid.write('            <Geometry GeometryType="ORIGIN_DXDY">\n')
+                fid.write('\n')
+                fid.write('              <DataItem ItemType="HyperSlab" Dimensions="2" Type="HyperSlab">\n')
+                fid.write('                <DataItem Dimensions="3 2" Format="XML">\n')
+                fid.write('                  %i 0\n' % (b))
+                fid.write('                  1 1\n')
+                fid.write('                  1 2\n')
+                fid.write('                </DataItem>\n')
+                fid.write('                <DataItem Name="origin" Dimensions="%i 2" Format="HDF" ItemType="Uniform">\n' % (Nb))
+                # origin of blocks defined by first prefix
+                fid.write('                  %s:/coords_origin\n' % (directory + prefixes[0] + '_' + timestamps[i] + '.h5') )
+                fid.write('                </DataItem>\n')
+                fid.write('              </DataItem>\n')
+                fid.write('\n')
+                fid.write('              <DataItem ItemType="HyperSlab" Dimensions="2" Type="HyperSlab">\n')
+                fid.write('                <DataItem Dimensions="3 2" Format="XML">\n')
+                fid.write('                  %i 0\n' % (b) )
+                fid.write('                  1 1\n')
+                fid.write('                  1 2\n')
+                fid.write('                </DataItem>\n')
+                fid.write('                <DataItem Name="spacing" Dimensions="%i 2" Format="HDF">\n' % (Nb) )
+                # block spacing defined by first prefix
+                fid.write('                  %s:/coords_spacing\n'% (directory + prefixes[0] + '_' + timestamps[i] + '.h5'))
+                fid.write('                </DataItem>\n')
+                fid.write('              </DataItem>\n')
+                fid.write('            </Geometry>\n')
+                fid.write('\n')
+                # for each time step and each block, we have different quantities (prefixes)
+                for prefix in prefixes:
+                    fid.write('            <Attribute Name="%s"  AttributeType="Scalar" Center="Node">\n' % (prefix) )
+                    fid.write('              <DataItem ItemType="HyperSlab" Dimensions="%i %i" Type="HyperSlab">\n' % (Bs,Bs) )
+                    fid.write('                <DataItem Dimensions="3 3" Format="XML">\n')
+                    fid.write('                  %i 0 0\n' % (b) )
+                    fid.write('                  1 1 1\n')
+                    fid.write('                  1 %i %i\n' % (Bs,Bs) )
+                    fid.write('              </DataItem>\n')
+                    fid.write('                <DataItem Format="HDF" Dimensions="%i %i %i" AttributeType="Scalar" Center="Node">\n' % (Nb,Bs,Bs) )
+                    fid.write('                  %s:/blocks\n' % (directory + prefix + '_' + timestamps[i] + '.h5') )
+                    fid.write('                </DataItem>\n')
+                    fid.write('              </DataItem>\n')
+                    fid.write('            </Attribute>\n')
+
+                # although the following code appears to be correct, paraview fails to read it correctly. it reports a 3d vector
+                # for the moment, we just deactivate vectors...
+#                for prefix in vectors:
+#                    fid.write('            <Attribute Name="%s"  AttributeType="Vector" Center="Node">\n' % (prefix) )
+#                    fid.write('    <DataItem ItemType="Function" Function="JOIN($0, $1)" Dimensions="%i %i 2">\n' % (Bs, Bs) )
+#                    fid.write('         <DataItem ItemType="HyperSlab" Dimensions="%i %i" Type="HyperSlab">\n' % (Bs,Bs) )
+#                    fid.write('                <DataItem Dimensions="3 3" Format="XML">\n')
+#                    fid.write('                  %i 0 0\n' % (b) )
+#                    fid.write('                  1 1 1\n')
+#                    fid.write('                  1 %i %i\n' % (Bs,Bs) )
+#                    fid.write('                </DataItem>\n')
+#                    fid.write('                <DataItem Format="HDF" Dimensions="%i %i %i">\n' % (Nb,Bs,Bs) )
+#                    fid.write('                  %s:/blocks\n' % (directory + prefix + 'x' + '_' + timestamps[i] + '.h5') )
+#                    fid.write('                </DataItem>\n')
+#                    fid.write('         </DataItem>\n')
+#
+#                    fid.write('         <DataItem ItemType="HyperSlab" Dimensions="%i %i" Type="HyperSlab">\n' % (Bs,Bs) )
+#                    fid.write('                <DataItem Dimensions="3 3" Format="XML">\n')
+#                    fid.write('                  %i 0 0\n' % (b) )
+#                    fid.write('                  1 1 1\n')
+#                    fid.write('                  1 %i %i\n' % (Bs,Bs) )
+#                    fid.write('                </DataItem>\n')
+#                    fid.write('                <DataItem Format="HDF" Dimensions="%i %i %i">\n' % (Nb,Bs,Bs) )
+#                    fid.write('                  %s:/blocks\n' % (directory + prefix + 'y' + '_' + timestamps[i] + '.h5') )
+#                    fid.write('                </DataItem>\n')
+#                    fid.write('         </DataItem>\n')
+#
+#                    fid.write('    </DataItem>\n')
+#                    fid.write('            </Attribute>\n')
+
+                fid.write('          </Grid>\n')
+            fid.write('        </Grid> <!-- ooooooooo END OF TIME STEP oooooooo -->\n')
+        fid.write('      </Grid> <!-- END OF WABBIT COLLECTION -->\n')
+        fid.write('    </Domain>\n')
+        fid.write('  </Xdmf>\n')
+        fid.close()
+
+    elif (len(res)==4):
+        # 3d data
+        Nb, Bs = res[0:1+1]
+        print('File %s contains Nb=%i blocks of size %i x %i x %i)' % (file, Nb, Bs, Bs, Bs) )
+        warn('Wabbitt 3d data not yet implemented.')
+
+
+
+
+def write_xmf_file_flusi(args, outfile, times, timestamps, prefixes, scalars, vectors, directory):
+    # Todo: read nx,ny,nz,lx,ly,lz,origin from files here and not in wrapper. check if every file has the same values
+    # yell if not.
+
+    print('-------------------------')
+    print('- FluSI module          -')
+    print('-------------------------')
+
+    # we read the domain size and resolution from all files that we want to process
+    # into lists and check if they all have the same values. If they don't, the code
+    # yells but proceeds. If the resolution changes between files, the XMF file will
+    # cause paraview to crash
+    nnx, nny, nnz, llx, lly, llz = [], [], [], [], [], []
+    ox, oy, oz = [],[],[]
+    for prefix in prefixes:
+        for timestamp in timestamps:
+            fname = directory + prefix + '_' + timestamp + '.h5'
+            # read file
+            f = h5py.File(fname, 'r')
+
+            # list all hdf5 datasets in the file - usually, we expect
+            # to find only one.
+            datasets = list(f.keys())
+
+            # as there should be only one, this should be our dataset:
+            dset_name = datasets[0]
+
+            # get the dataset handle
+            dset_id = f.get(dset_name)
+
+            # from the dset handle, read the attributes
+            res = dset_id.attrs.get('nxyz')
+            box = dset_id.attrs.get('domain_size')
+            # new: we allow for non.zero origin, if the file contains that information.
+            origin = dset_id.attrs.get('origin')
+            if origin is None or args.ignore_origin:
+                origin = [0.0, 0.0, 0.0]
+
+            nnx.append(res[0])
+            nny.append(res[1])
+            llx.append(box[0])
+            lly.append(box[2])
+            ox.append(origin[0])
+            oy.append(origin[1])
+
+            if len(res)==3:
+                nnz.append(res[2])
+                llz.append(box[2])
+                oz.append(origin[2])
+
+    print('From all files, extracting resolution and domain size...')
+    print('resolution..')
+    nx, ny, nz = uniquelist(nnx), uniquelist(nny), uniquelist(nnz)
+    print('domain size..')
+    lx, ly, lz = uniquelist(llx), uniquelist(lly), uniquelist(llz)
+    print('origin..')
+    ox, oy, oz = uniquelist(ox), uniquelist(oy), uniquelist(oz)
+    origin = [ox,oy,oz]
+
+
+    # unit spacing, if forced
+    if args.unit_spacing:
+        lx, ly, lz = float(nx), float(ny), float(nz)
+
+    if len(res) == 3:
+        print('Resolution is     %i x %i x %i' % (nx,ny,nz) )
+        print('Domain size is    %i x %i x %i' % (lx,ly,lz) )
+        print("Origin of grid is %e %e %e" % (origin[0],origin[1],origin[2]))
+    else:
+        print('Resolution is     %i x %i' % (nx,ny) )
+        print('Domain size is    %i x %i' % (lx,ly) )
+        print("Origin of grid is %e %e" % (origin[0],origin[1]))
+
     fid = open(outfile, 'w')
 
     #--------------------------------------------------------------------------
@@ -63,7 +298,7 @@ def write_xmf_file(outfile,nx,ny,nz,lx,ly,lz, times, timestamps, prefixes, scala
     # NB: indices output in z,y,x order. (C vs Fortran ordering?)
     fid.write('<?xml version="1.0" ?>\n')
     fid.write('<!DOCTYPE Xdmf SYSTEM "Xdmf.dtd" [\n')
-    if dims == 3:
+    if len(res) == 3:
         fid.write('<!ENTITY nxnynz "%i %i %i">\n' % (nz,ny,nx) )
         # write also half the resolutio to XMF file since we might use it
         # if striding is active!
@@ -86,21 +321,21 @@ def write_xmf_file(outfile,nx,ny,nz,lx,ly,lz, times, timestamps, prefixes, scala
         fid.write('<!-- beginning time step -->\n')
         fid.write('<Grid Name="FLUSI_cartesian_grid" GridType="Uniform">\n')
         fid.write('    <Time Value="%e" />\n' % times[k])
-        fid.write('    <Topology TopologyType="%iDCoRectMesh" Dimensions="&nxnynz;" />\n' % dims)
+        fid.write('    <Topology TopologyType="%iDCoRectMesh" Dimensions="&nxnynz;" />\n' % len(res))
         fid.write(' \n')
-        if dims == 3:
+        if len(res) == 3:
             fid.write('    <Geometry GeometryType="Origin_DxDyDz">\n')
         else:
             fid.write('    <Geometry GeometryType="Origin_DxDy">\n')
-        fid.write('    <DataItem Dimensions="%i" NumberType="Float" Format="XML">\n' % dims)
-        if dims == 3:
+        fid.write('    <DataItem Dimensions="%i" NumberType="Float" Format="XML">\n' % len(res))
+        if len(res) == 3:
             fid.write('    %e %e %e \n' % (origin[2],origin[1],origin[0]) )
         else:
             fid.write('    %e %e \n' % (origin[1], origin[0]) )
         fid.write('    </DataItem>\n')
-        fid.write('    <DataItem Dimensions="%i" NumberType="Float" Format="XML">\n' % dims)
+        fid.write('    <DataItem Dimensions="%i" NumberType="Float" Format="XML">\n' % len(res))
         # NB: indices output in z,y,x order. (C vs Fortran ordering?)
-        if dims == 3:
+        if len(res) == 3:
             fid.write('    %e %e %e\n' % (lz/nz, ly/ny, lx/nx) )
         else:
             fid.write('    %e %e\n' % (ly/ny, lx/nx) )
@@ -120,7 +355,7 @@ def write_xmf_file(outfile,nx,ny,nz,lx,ly,lz, times, timestamps, prefixes, scala
 
         for p in vectors:
             #+++++++++++ vector
-            if dims == 3:
+            if len(res) == 3:
                 fid.write('\n')
                 fid.write('    <!--Vector-->\n')
                 fid.write('    <Attribute Name="%s" AttributeType="Vector" Center="Node">\n' % p)
@@ -167,9 +402,6 @@ def write_xmf_file(outfile,nx,ny,nz,lx,ly,lz, times, timestamps, prefixes, scala
     fid.close()
     return
 
-
-
-
 def main():
     print( bcolors.OKGREEN + "**********************************************" + bcolors.ENDC )
     print( bcolors.OKGREEN + "**   hdf2xml.py                             **" + bcolors.ENDC )
@@ -181,7 +413,6 @@ def main():
     read the time from the filename, since paraview crashes if two files are at the
     same instant. Setting -n will force hdf2xmf.py to read from filename, eg mask_00010.h5
     will be at time 10, even if h5 attributes tell it is at t=0.1""", action="store_true")
-    parser.add_argument("-2", "--two-dim", help="Assume 2D data", action="store_true")
     parser.add_argument("-1", "--one-file-per-timestep", help="""Sometimes, it is useful to generate one XMF file per
     time step (and not one global file), for example to compare two time steps. The -1 option generates these individual
     files. If -o outfile.xmf is set, then the files are named outfile_0000.xmf, outfile_0001.xmf etc.""", action="store_true")
@@ -209,14 +440,6 @@ def main():
     if directory[-1] != "/":
         directory = directory + '/'
     print("looking for files in dir: " + bcolors.HEADER + directory + bcolors.ENDC)
-
-    # check if we deal with2d or 3d data
-    print(args)
-    if args.two_dim:
-        dims = 2
-    else:
-        dims = 3
-    print("HDF5 files will be treated as: "+bcolors.HEADER+("%iD data" % dims)+bcolors.ENDC)
 
     # parse the filename to write to, as in previous versions, the default value
     # is ALL.xmf
@@ -285,11 +508,11 @@ def main():
     # get the list of all h5 files in the current directory.
     #-------------------------------------------------------------------------------
     print('-------------------------------------------------------------------')
-    print("Looking for files...", end='')
+    print("Looking for files...")
     # get the list of h5 files and sort them
     filelist = sorted( glob.glob(directory + "*.h5") )
     if not filelist:
-        warn('No files found')
+        warn('No *.h5 files found')
         return
 
     # initialize the list of prefixes
@@ -299,10 +522,8 @@ def main():
     filelist_used = []
     # initialize list of times
     times = []
-    nx = None
-    ny = None
-    nz = None
-    nfiles = 0
+    # mode can be either wabbit or flusi
+    mode = None
 
     # loop over all h5 files, add their prefix and timestamp to a list
     for file in filelist:
@@ -312,165 +533,120 @@ def main():
         # to find only one.
         datasets = list(f.keys())
 
-        # if we find more than one dset we warn that this is unusual
-        if (len(datasets) != 1):
-            warn("we found more than one dset in the file (and thus skip it)..."+file)
+        if 'blocks' in datasets and mode is None:
+            # we deal with wabbit data: more than one dset per file
+            mode = 'wabbit'
+            print('Data identified as WABBIT data..')
+        elif get_dset_name(file) in datasets and mode is None:
+            # flusi data, only one dset per file expected
+            mode = 'flusi'
+            print('Data identified as FLUSI data..')
+
+        if mode is None:
+            # this message is also issued for FLUSI runtime backup files...
+            warn('File: '+file+' seems to be neither WABBIT nor FLUSI data. Skip.')
         else:
-            #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-            # judging from the dataset, do we use this file?
-            #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-            # as there should be only one, this should be our dataset:
-            dset_name = datasets[0]
-            # a priori, we'll not use this this
-            used = False
-            # Variant I: given list of exclude prefixes:
-            if args.exclude_prefixes:
-                # the --exclude-prefixe option helps us ignore some prefixes, for example if they
-                # have incomplete data. so, if the current dset_name is on that list, ignore it:
-                if dset_name not in args.exclude_prefixes:
-                    # we used this file:
-                    used = True
+            # prefix name
+            prefix = get_dset_name(file)
 
-            # Variant II: given list of include prefixes:
-            if args.include_prefixes:
-                # the --include-prefixes option helps us focus on some prefixes, for example if they
-                # have incomplete data. so, if the current dset_name is on that list, ignore it:
-                if dset_name in args.include_prefixes:
-                    # we used this file:
-                    used = True
+            # if we find more than one dset we warn that this is unusual for flusi
+            # files. for wabbit files, it is normal.
+            if  (mode == 'flusi') and (len(datasets) != 1) :
+                warn("we found more than one dset in the file (and thus skip it)..."+file)
 
-            # variant III: neither of both:
-            if not args.exclude_prefixes and not args.include_prefixes:
-                # we used this file:
-                used = True
-
-            #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-            # judging from the timestamp, do we use this file?
-            #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-            if used:
-                # now the condition for the dataset was met, we again suppose not
-                # to use the file.
+            else:
+                #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                # judging from the dataset, do we use this file?
+                #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                # a priori, we'll not use this this
                 used = False
-                # get filename timestamp
-                timestamp = get_timestamp( file )
-                # variant I: given list of timestamps to exlude
-                if args.exclude_timestamps:
-                    if timestamp not in args.exclude_timestamps:
+                # Variant I: given list of exclude prefixes:
+                if args.exclude_prefixes:
+                    # the --exclude-prefixe option helps us ignore some prefixes, for example if they
+                    # have incomplete data. so, if the current prefix is on that list, ignore it:
+                    if prefix not in args.exclude_prefixes:
                         # we used this file:
                         used = True
 
-                # variant II: given the list of timestamps
-                if args.include_timestamps:
-                    if timestamp in args.include_timestamps:
+                # Variant II: given list of include prefixes:
+                if args.include_prefixes:
+                    # the --include-prefixes option helps us focus on some prefixes, for example if they
+                    # have incomplete data. so, if the current prefix is on that list, ignore it:
+                    if prefix in args.include_prefixes:
                         # we used this file:
                         used = True
 
-                # variant III neither of both
-                if not args.exclude_timestamps and not args.include_timestamps:
+                # variant III: neither of both:
+                if not args.exclude_prefixes and not args.include_prefixes:
                     # we used this file:
                     used = True
 
-            if used:
-                # add to list of actually used files
-                filelist_used.append(file)
-                # count used files
-                nfiles = nfiles + 1
-                # store the dsetname in the list of prefixes. here, the entries are non-unique
-                # we'll remove duplicates later.
-                prefixes.append(dset_name)
+                #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                # judging from the timestamp, do we use this file?
+                #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                if used:
+                    # now the condition for the dataset was met, we again suppose not
+                    # to use the file.
+                    used = False
+                    # get filename timestamp
+                    timestamp = get_timestamp( file )
+                    # variant I: given list of timestamps to exlude
+                    if args.exclude_timestamps:
+                        if timestamp not in args.exclude_timestamps:
+                            # we used this file:
+                            used = True
 
-                # get the dataset handle
-                dset_id = f.get(dset_name)
+                    # variant II: given the list of timestamps
+                    if args.include_timestamps:
+                        if timestamp in args.include_timestamps:
+                            # we used this file:
+                            used = True
 
-                # from the dset handle, read the attributes
-                res = dset_id.attrs.get('nxyz')
-                box = dset_id.attrs.get('domain_size')
+                    # variant III neither of both
+                    if not args.exclude_timestamps and not args.include_timestamps:
+                        # we used this file:
+                        used = True
 
-                # new: we allow for non.zero origin, if the file contains that information.
-                origin = dset_id.attrs.get('origin')
-                if origin is None:
-                    origin = [0.0, 0.0, 0.0]
+                if used:
+                    # add to list of actually used files
+                    filelist_used.append(file)
+                    # store the dsetname in the list of prefixes. here, the entries are non-unique
+                    # we'll remove duplicates later.
+                    prefixes.append(prefix)
 
-                # copy current values (these should not change between files. TODO: warn if they do)
-                if nx is not None:
-                    if nx != res[0]:
-                        warn(' The nx-resolution seems to have changed')
-                if ny is not None:
-                    if ny != res[1]:
-                        warn(' The ny-resolution seems to have changed')
-                if nz is not None and dims==3:
-                    if nz != res[2]:
-                        warn(' The nz-resolution seems to have changed')
+                    # the option --scalars forces the code to ignore the trailing x,y,z icons
+                    # and treat all fields as scalars
+                    # vector / scalar handling: if it ends on {x,y,z} the prefix indicates a vector
+                    # otherwise, we deal with a scalar field.
+                    if prefix[len(prefix)-1:len(prefix)] in ['x','y','z'] and not args.scalars:
+                        # add prefix name without trailing x,y,z to list of vectors
+                        vectors.append( prefix[0:len(prefix)-1] )
+                    else:
+                        # it's a scalar!
+                        scalars.append(prefix)
 
-                if len(res)==3:
-                    nx, ny, nz = res
-                    lx, ly, lz = box
-                else:
-                    nx, ny = res
-                    lx, ly = box
-                    nz = 0
-                    lz = 0.0
-
-                # warn if we might wrongly treat 3D data:
-                if dims==2 and len(res)!=2:
-                    warn('You told me this is 2D data but it appears to be 3D data.')
-                if dims==3 and len(res)!=3:
-                    warn('You told me this is 3D data but it appears to be 2D data.')
-
-
-                # the option --scalars forces the code to ignore the trailing x,y,z icons
-                # and treat all fields as scalars
-                # vector / scalar handling: if it ends on {x,y,z} the dset_name indicates a vector
-                # otherwise, we deal with a scalar field.
-                if dset_name[len(dset_name)-1:len(dset_name)] in ['x','y','z'] and not args.scalars:
-                    vectors.append( dset_name[0:len(dset_name)-1] )
-                else:
-                    scalars.append(dset_name)
-
-
-    # what is the resolution?
-    if dims==3:
-        print("Resolution is %i %i %i" % (nx,ny,nz))
-    else:
-        print("Resolution is %i %i" % (nx,ny))
-
-    # origin of grid:
-    if args.ignore_origin:
-        origin = [0.0, 0.0, 0.0]
-    print("Origin of grid is %e %e %e" % (origin[0],origin[1],origin[2]))
-
-    # unit spacing, if forced
-    if args.unit_spacing:
-        lx = float(nx)
-        ly = float(ny)
-        lz = float(nz)
-
+    # remove duplicates
     prefixes = sorted( list(set(prefixes)) )
     vectors = sorted( list(set(vectors)) )
     scalars = sorted( list(set(scalars)) )
+
     #-------------------------------------------------------------------------------
     # check if vectors are complete, if not, add them to scalars (ux_00.h5 uy_00.h5 uz_00.h5)
     #-------------------------------------------------------------------------------
-    if dims==3:
-        for pre in vectors:
-            if pre+'x' not in prefixes or pre+'y' not in prefixes or pre+'z' not in prefixes:
-                warn( pre+' is not a vector' )
-                vectors.remove( pre )
-                if pre+'x' in prefixes:
-                    scalars.append(pre+'x')
-                if pre+'y' in prefixes:
-                    scalars.append(pre+'y')
-                if pre+'z' in prefixes:
-                    scalars.append(pre+'z')
-    else:
-        for pre in vectors:
-            if pre+'x' not in prefixes or pre+'y' not in prefixes:
-                warn( pre+' is not a vector' )
-                vectors.remove( pre )
-                if pre+'x' in prefixes:
-                    scalars.append(pre+'x')
-                if pre+'y' in prefixes:
-                    scalars.append(pre+'y')
+    for pre in vectors:
+        if (pre+'x' in prefixes and pre+'y' in prefixes and pre+'z' in prefixes):
+            print( pre+' is a 3D vector (x,y,z)')
+        elif (pre+'x' in prefixes and pre+'y' in prefixes):
+            print( pre+' is a 2D vector (x,y)')
+        else:
+            warn( pre+' is not a vector (its x-component is missing..)')
+            vectors.remove( pre )
+            if pre+'x' in prefixes:
+                scalars.append(pre+'x')
+            if pre+'y' in prefixes:
+                scalars.append(pre+'y')
+            if pre+'z' in prefixes:
+                scalars.append(pre+'z')
 
 
     #-------------------------------------------------------------------------------
@@ -523,11 +699,12 @@ def main():
                 fname = directory + p + "_" + timestamp + ".h5"
                 # read time from file
                 f = h5py.File(fname, 'r')
-                # list all hdf5 datasets in the file - usually, we expect
-                # to find only one.
-                datasets = list(f.keys())
-                # as there should be only one, this should be our dataset:
-                dset_name = datasets[0]
+                # dataset name depends on program
+                if mode is 'flusi':
+                    dset_name = get_dset_name(fname)
+                elif mode is 'wabbit':
+                    dset_name = 'blocks'
+                    #
                 # get the dataset handle
                 dset_id = f.get(dset_name)
                 # from the dset handle, read the attributes
@@ -566,14 +743,18 @@ def main():
             # construct filename
             outfile = fname + "_" + timestamps[i] + ".xmf"
             print("writing " + outfile + "....")
-            write_xmf_file( outfile,nx,ny,nz,lx,ly,lz, [times[i]], [timestamps[i]], prefixes, scalars,
-                           vectors, dims, directory, origin)
+            if mode is 'flusi':
+                write_xmf_file_flusi( args, outfile, [times[i]], [timestamps[i]], prefixes, scalars, vectors, directory)
+            elif mode is 'wabbit':
+                write_xmf_file_wabbit( args, outfile, [times[i]], [timestamps[i]], prefixes, scalars, vectors, directory)
     else:
         # one file for the dataset
         # write the acual xmf file with the information extracted above
         print("writing " + args.outfile + "....")
-        write_xmf_file( args.outfile,nx,ny,nz,lx,ly,lz, times, timestamps, prefixes, scalars,
-                       vectors, dims, directory, origin)
+        if mode is 'flusi':
+            write_xmf_file_flusi( args, args.outfile, times, timestamps, prefixes, scalars, vectors, directory)
+        elif mode is 'wabbit':
+            write_xmf_file_wabbit( args, args.outfile, times, timestamps, prefixes, scalars, vectors, directory)
 
     print("Done. Enjoy!")
 
