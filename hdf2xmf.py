@@ -258,7 +258,7 @@ def write_xmf_file_flusi(args, outfile, times, timestamps, prefixes, scalars, ve
             nnx.append(res[0])
             nny.append(res[1])
             llx.append(box[0])
-            lly.append(box[2])
+            lly.append(box[1])
             ox.append(origin[0])
             oy.append(origin[1])
 
@@ -283,11 +283,11 @@ def write_xmf_file_flusi(args, outfile, times, timestamps, prefixes, scalars, ve
 
     if len(res) == 3:
         print('Resolution is     %i x %i x %i' % (nx,ny,nz) )
-        print('Domain size is    %i x %i x %i' % (lx,ly,lz) )
+        print('Domain size is    %e x %e x %e' % (lx,ly,lz) )
         print("Origin of grid is %e %e %e" % (origin[0],origin[1],origin[2]))
     else:
         print('Resolution is     %i x %i' % (nx,ny) )
-        print('Domain size is    %i x %i' % (lx,ly) )
+        print('Domain size is    %e x %e' % (lx,ly) )
         print("Origin of grid is %e %e" % (origin[0],origin[1]))
 
     fid = open(outfile, 'w')
