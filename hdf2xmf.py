@@ -212,7 +212,121 @@ def write_xmf_file_wabbit(args, outfile, times, timestamps, prefixes, scalars, v
         # 3d data
         Nb, Bs = res[0:1+1]
         print('File %s contains Nb=%i blocks of size %i x %i x %i)' % (file, Nb, Bs, Bs, Bs) )
-        warn('Wabbitt 3d data not yet implemented.')
+
+        # header
+        fid.write('<?xml version="1.0" ?>\n')
+        fid.write('<!DOCTYPE Xdmf SYSTEM "Xdmf.dtd" []>\n')
+        fid.write('<Xdmf xmlns:xi="http://www.w3.org/2003/XInclude" Version="2.2">\n')
+        fid.write('  <Domain>\n')
+
+        fid.write('    <Grid Name="%s" GridType="Collection" CollectionType="Temporal">\n' % ('wabbit3D') )
+        fid.write('\n')
+
+        # list of times (associated to timestamps)
+        fid.write('      <Time TimeType="List">\n')
+        fid.write('        <DataItem Format="XML" NumberType="Float" Dimensions="%i">\n' % (len(timestamps)) )
+        fid.write('          ')
+        for time in times:
+            fid.write(' %e ' % (time) )
+        fid.write('</DataItem>\n')
+        fid.write('        </Time>\n')
+        fid.write('\n')
+
+        # loop over time steps
+        for i in range(len(timestamps)):
+            fid.write('\n')
+            fid.write('        <Grid Name="timestep %i" GridType="Collection" CollectionType="Spatial">\n' % (i))
+
+            #use any of our files at the same timestamp to determine number of blocks
+            file = directory + prefixes[0] + '_' + timestamps[i] + '.h5'
+            # open h5 file
+            f = h5py.File(file)
+            dset_id = f.get('blocks')
+            Nb = dset_id.shape[0]
+
+            # all blocks for this timestep
+            for b  in range(Nb):
+                fid.write('          <!-- ***************************************************************** -->\n')
+                fid.write('          <Grid Name="block%i" GridType="Uniform">\n' % (b))
+                fid.write('            <Topology TopologyType="3DCoRectMesh" NumberOfElements="%i %i %i"/>\n' % (Bs,Bs,Bs) )
+                fid.write('            <Geometry GeometryType="ORIGIN_DXDYDZ">\n')
+                fid.write('\n')
+                fid.write('              <DataItem ItemType="HyperSlab" Dimensions="2" Type="HyperSlab">\n')
+                fid.write('                <DataItem Dimensions="3 2" Format="XML">\n')
+                fid.write('                  %i 0\n' % (b))
+                fid.write('                  1 1\n')
+                fid.write('                  1 3\n')
+                fid.write('                </DataItem>\n')
+                fid.write('                <DataItem Name="origin" Dimensions="%i 3" Format="HDF" ItemType="Uniform">\n' % (Nb))
+                # origin of blocks defined by first prefix
+                fid.write('                  %s:/coords_origin\n' % (directory + prefixes[0] + '_' + timestamps[i] + '.h5') )
+                fid.write('                </DataItem>\n')
+                fid.write('              </DataItem>\n')
+                fid.write('\n')
+                fid.write('              <DataItem ItemType="HyperSlab" Dimensions="2" Type="HyperSlab">\n')
+                fid.write('                <DataItem Dimensions="3 2" Format="XML">\n')
+                fid.write('                  %i 0\n' % (b) )
+                fid.write('                  1 1\n')
+                fid.write('                  1 3\n')
+                fid.write('                </DataItem>\n')
+                fid.write('                <DataItem Name="spacing" Dimensions="%i 3" Format="HDF">\n' % (Nb) )
+                # block spacing defined by first prefix
+                fid.write('                  %s:/coords_spacing\n'% (directory + prefixes[0] + '_' + timestamps[i] + '.h5'))
+                fid.write('                </DataItem>\n')
+                fid.write('              </DataItem>\n')
+                fid.write('            </Geometry>\n')
+                fid.write('\n')
+                # for each time step and each block, we have different quantities (prefixes)
+                for prefix in prefixes:
+                    fid.write('            <Attribute Name="%s"  AttributeType="Scalar" Center="Node">\n' % (prefix) )
+                    fid.write('              <DataItem ItemType="HyperSlab" Dimensions="%i %i %i" Type="HyperSlab">\n' % (Bs,Bs,Bs) )
+                    fid.write('                <DataItem Dimensions="3 4" Format="XML">\n')
+                    fid.write('                  %i 0 0 0\n' % (b) )
+                    fid.write('                  1 1 1 1 \n')
+                    fid.write('                  1 %i %i %i\n' % (Bs,Bs,Bs) )
+                    fid.write('              </DataItem>\n')
+                    fid.write('                <DataItem Format="HDF" Dimensions="%i %i %i %i" AttributeType="Scalar" Center="Node">\n' % (Nb,Bs,Bs,Bs) )
+                    fid.write('                  %s:/blocks\n' % (directory + prefix + '_' + timestamps[i] + '.h5') )
+                    fid.write('                </DataItem>\n')
+                    fid.write('              </DataItem>\n')
+                    fid.write('            </Attribute>\n')
+
+                # although the following code appears to be correct, paraview fails to read it correctly. it reports a 3d vector
+                # for the moment, we just deactivate vectors...
+#                for prefix in vectors:
+#                    fid.write('            <Attribute Name="%s"  AttributeType="Vector" Center="Node">\n' % (prefix) )
+#                    fid.write('    <DataItem ItemType="Function" Function="JOIN($0, $1)" Dimensions="%i %i 2">\n' % (Bs, Bs) )
+#                    fid.write('         <DataItem ItemType="HyperSlab" Dimensions="%i %i" Type="HyperSlab">\n' % (Bs,Bs) )
+#                    fid.write('                <DataItem Dimensions="3 3" Format="XML">\n')
+#                    fid.write('                  %i 0 0\n' % (b) )
+#                    fid.write('                  1 1 1\n')
+#                    fid.write('                  1 %i %i\n' % (Bs,Bs) )
+#                    fid.write('                </DataItem>\n')
+#                    fid.write('                <DataItem Format="HDF" Dimensions="%i %i %i">\n' % (Nb,Bs,Bs) )
+#                    fid.write('                  %s:/blocks\n' % (directory + prefix + 'x' + '_' + timestamps[i] + '.h5') )
+#                    fid.write('                </DataItem>\n')
+#                    fid.write('         </DataItem>\n')
+#
+#                    fid.write('         <DataItem ItemType="HyperSlab" Dimensions="%i %i" Type="HyperSlab">\n' % (Bs,Bs) )
+#                    fid.write('                <DataItem Dimensions="3 3" Format="XML">\n')
+#                    fid.write('                  %i 0 0\n' % (b) )
+#                    fid.write('                  1 1 1\n')
+#                    fid.write('                  1 %i %i\n' % (Bs,Bs) )
+#                    fid.write('                </DataItem>\n')
+#                    fid.write('                <DataItem Format="HDF" Dimensions="%i %i %i">\n' % (Nb,Bs,Bs) )
+#                    fid.write('                  %s:/blocks\n' % (directory + prefix + 'y' + '_' + timestamps[i] + '.h5') )
+#                    fid.write('                </DataItem>\n')
+#                    fid.write('         </DataItem>\n')
+#
+#                    fid.write('    </DataItem>\n')
+#                    fid.write('            </Attribute>\n')
+
+                fid.write('          </Grid>\n')
+            fid.write('        </Grid> <!-- ooooooooo END OF TIME STEP oooooooo -->\n')
+        fid.write('      </Grid> <!-- END OF WABBIT COLLECTION -->\n')
+        fid.write('    </Domain>\n')
+        fid.write('  </Xdmf>\n')
+        fid.close()
 
 
 
@@ -514,6 +628,7 @@ def main():
     if not filelist:
         warn('No *.h5 files found')
         return
+    print("We found " + bcolors.HEADER + "%i" % len(filelist) + bcolors.ENDC + " *.h5-files in directory")
 
     # initialize the list of prefixes
     prefixes = []
@@ -732,7 +847,6 @@ def main():
     if not prefixes or not timestamps:
         warn('No prefixes or timestamps..an empty file is created')
 
-    print("We found " + bcolors.HEADER + "%i" % len(filelist) + bcolors.ENDC + " *.h5-files in directory")
     print("The XMF file(s) refers to " + bcolors.HEADER + "%i" % (len(timestamps)*len(prefixes)) + bcolors.ENDC + " of these *.h5-files")
 
     if args.one_file_per_timestep:
