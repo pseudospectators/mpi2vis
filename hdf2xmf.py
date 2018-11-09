@@ -123,6 +123,7 @@ def write_xmf_file_wabbit(args, outfile, times, timestamps, prefixes, scalars, v
             f = h5py.File(file)
             dset_id = f.get('blocks')
             Nb = dset_id.shape[0]
+            print("timestamp "+timestamps[i]+" has Nb=%i blocks" % (Nb) )
 
             # all blocks for this timestep
             for b  in range(Nb):
@@ -243,6 +244,7 @@ def write_xmf_file_wabbit(args, outfile, times, timestamps, prefixes, scalars, v
             f = h5py.File(file)
             dset_id = f.get('blocks')
             Nb = dset_id.shape[0]
+            print("timestamp "+timestamps[i]+" has Nb=%i blocks" % (Nb) )
 
             # all blocks for this timestep
             for b  in range(Nb):
@@ -545,12 +547,16 @@ def main():
     group2 = parser.add_mutually_exclusive_group()
     group2.add_argument("-t", "--include-timestamps", help="Include just use these timestamps, if the files exist (space separated)", nargs='+')
     group2.add_argument("-x", "--exclude-timestamps", help="Exclude these timestamps (space separated)", nargs='+')
+    group3 = parser.add_mutually_exclusive_group()
+    group3.add_argument("-p", "--skip-incomplete-timestamps", help="If some files are missing, skip the time step", action="store_true")
+    group3.add_argument("-l", "--skip-incomplete-prefixes", help="If some files are missing, skip the prefix", action="store_true")
     args = parser.parse_args()
 
     if args.directory is None:
         directory = './'
     else:
         directory = args.directory
+
     if directory[-1] != "/":
         directory = directory + '/'
     print("looking for files in dir: " + bcolors.HEADER + directory + bcolors.ENDC)
@@ -652,6 +658,7 @@ def main():
             # we deal with wabbit data: more than one dset per file
             mode = 'wabbit'
             print('Data identified as WABBIT data..')
+
         elif get_dset_name(file) in datasets and mode is None:
             # flusi data, only one dset per file expected
             mode = 'flusi'
@@ -660,6 +667,7 @@ def main():
         if mode is None:
             # this message is also issued for FLUSI runtime backup files...
             warn('File: '+file+' seems to be neither WABBIT nor FLUSI data. Skip.')
+
         else:
             # prefix name
             prefix = get_dset_name(file)
@@ -789,12 +797,35 @@ def main():
     #-------------------------------------------------------------------------------
     # check if all files from the matrix exist
     #-------------------------------------------------------------------------------
+    timestamps_to_remove, prefixes_to_remove =[], []
+
     for t in timestamps:
         for p in prefixes:
             # construct filename
             fname = directory + p + "_" + t + ".h5"
             if not os.path.isfile(fname):
                 warn("File "+fname+ " NOT found!")
+
+                # if desired, remove the timestamp from the list:
+                if args.skip_incomplete_timestamps:
+                    warn("removing timestamp "+t+ " completely!")
+                    timestamps_to_remove.append(t)
+
+                # if desired, remove the prefix from the list:
+                if args.skip_incomplete_prefixes:
+                    warn("removing prefix "+p+ " completely!")
+                    prefixes_to_remove.append(p)
+                    if not args.scalars:
+                        raise ValueError("Please use --skip_incomplete_prefixes (-l) only with --scalars (-q) ")
+
+    for t in timestamps_to_remove:
+        timestamps.remove(t)
+
+    for p in prefixes_to_remove:
+        prefixes.remove(p)
+
+    print("We found the following timestamps: ", end='')
+    print_list( timestamps )
 
     # we have now the timestamps as an ordered list, and the times array as an ordered list
     # however, if we exclude / include some files, the lists do not match, and we select files with the
